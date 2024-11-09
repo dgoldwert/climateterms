@@ -389,7 +389,7 @@ anova_result <- car::Anova(M, type = "III")
 print(anova_result)
 
 tukey_test <- glht(M, linfct = mcp(Term = "Tukey"))
-generate_tukey_latex_output(tukey_test, "../overleaf/tabs/main_tukey.tex")
+generate_tukey_latex_output(tukey_test, "../overleaf/tabs/tukey_main.tex")
 ```
 
 ```{r US}
