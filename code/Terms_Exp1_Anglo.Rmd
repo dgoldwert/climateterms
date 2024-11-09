@@ -257,7 +257,7 @@ print(paste("N in Anglosphere data:", (nrow(df_main_anglo))))
 # Anglosphere Analyses
 ```{r main}
 M <- lmer(willingness ~ Term + (1 | Country), data = df_main_anglo)
-generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/anglo.tex")
+generate_model_and_latex_output(M, "willingness", "../overleaf/tabs_Anglo/main.tex")
 print(summary(M))
 confint(M)
 
@@ -272,7 +272,7 @@ print(anova_result)
 countries1 <- c("usa", "uk", "canada", "australia", "newzealand")
 
 # Filter the data for these countries
-df_long_anglo <- df_long1 %>%
+df_long_anglo <- df_long %>%
   filter(Country %in% countries1)
 
 # Remove rows with missing data
@@ -284,39 +284,12 @@ dfc_anglo <- dfc_anglo[dfc_anglo$Gender %in% c(1, 2), ]
 
 # Create continuous ideology variable
 dfc_anglo$ide <- (dfc_anglo$Politics2_1 + dfc_anglo$Politics2_9) / 2
-
-# Create median split ideology variable
-new <- list()
-for (country in unique(dfc_anglo$Country)) {
-  sub <- dfc_anglo[dfc_anglo$Country == country, ] # Filter for rows in the current country
-  country_median <- median(sub$ide, na.rm = TRUE) # Calculate the median of ide within this country
-  sub$Ideology <- as.numeric(sub$ide > country_median) # Perform the median split and convert to numeric (0 or 1)
-  
-  # Ensure NaN ideology when Politics2_1 is NaN
-  sub$Ideology[is.na(sub$Politics2_1)] <- NA 
-  new[[country]] <- sub # Append the modified subset to the list
-}
-
-# Combine all subsets back into a single data frame
-dfc_anglo <- do.call(rbind, new)
 ```
 
 ```{r ideology (continuous)}
 #continuous ideology variable
 M <- lmer(willingness ~ Term*ide + (1 | Country), data = dfc)
 generate_model_and_latex_output(M, "willingness", "../overleaf/tabs_Anglo/main_ide_cont.tex")
-print(summary(M))
-confint(M)
-
-print(paste("------------------ ANOVA with type III sum of squares:------------------"))
-anova_result <- car::Anova(M, type = "III")
-print(anova_result)
-```
-
-```{r ideology (median split)}
-#median-split ideology variable
-M <- lmer(willingness ~ Term*Ideology + (1 | Country), data = dfc_anglo)
-generate_model_and_latex_output(M, "willingness", "../overleaf/tabs_Anglo/main_ide_ms.tex")
 print(summary(M))
 confint(M)
 
