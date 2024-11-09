@@ -1,5 +1,5 @@
 ---
-title: "Climate Terms Main Analyses"
+title: "Climate Terms Anglosphere-only Analyses"
 author: "Danielle Goldwert"
 date: "2024-10-24"
 output:
@@ -329,66 +329,50 @@ df_main$Term <- as.factor(df_main$Term)
 df_long$Term <- as.factor(df_long$Term)
 ```
 
-## descriptives
-```{r mean willingness}
-# Calculate sample sizes for each country
-sample_sizes <- df_main %>%
-  group_by(Country) %>%
-  summarise(sample_size = n())
+```{r make Anglo df}
+# Define the list of majority English-speaking countries
+anglo <- c("usa", "uk", "canada", "australia", "newzealand")
 
-# Calculate total willingness to act for each country
-total_willingness <- df_main %>%
-  group_by(Country) %>%
-  summarise(total_willingness = sum(willingness, na.rm = TRUE))
-
-# Merge sample sizes and total willingness data frames
-country_stats <- sample_sizes %>%
-  inner_join(total_willingness, by = "Country")
-
-# Compute the weighted mean
-weighted_mean <- country_stats %>%
-  summarise(weighted_mean = mean(total_willingness / sample_size, na.rm = TRUE)) %>%
-  pull(weighted_mean)
-
-# Calculate the unweighted mean of willingness
-unweighted_mean <- mean(df_main$willingness, na.rm = TRUE)
-
-# print means
-print(paste("weighted mean:", weighted_mean))
-print(paste("unweighted mean:", unweighted_mean))
+# Filter the data frame for these countries
+df_main_anglo <- df_main[df_main$Country %in% anglo, ]
+print(paste("N in Anglosphere data:", (nrow(df_main_anglo))))
 ```
 
-
-# Main Manuscript Analysis
-```{r full dataset}
-M <- lmer(willingness ~ Term + (1 | Country), data = df_main)
-generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/main.tex")
+# Anglosphere Analyses
+```{r main}
+M <- lmer(willingness ~ Term + (1 | Country), data = df_main_anglo)
+generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/anglo.tex")
 print(summary(M))
 confint(M)
 
 print(paste("------------------ ANOVA with type III sum of squares:------------------"))
 anova_result <- car::Anova(M, type = "III")
 print(anova_result)
-
-tukey_test <- glht(M, linfct = mcp(Term = "Tukey"))
-generate_tukey_latex_output(tukey_test, "../overleaf/tabs/tukey_main.tex")
 ```
 
 # Interactions
 ```{r clean long data}
-# Remove rows with missing data in df_long
-dfc <- na.omit(df_long)
+# Define the list of majority English-speaking countries
+countries1 <- c("usa", "uk", "canada", "australia", "newzealand")
+
+# Filter the data for these countries
+df_long_anglo <- df_long1 %>%
+  filter(Country %in% countries1)
+
+# Remove rows with missing data
+dfc_anglo <- df_long_anglo %>%
+  drop_na()
 
 # Remove participants whose Gender is not 1 or 2
-dfc <- dfc[dfc$Gender %in% c(1, 2), ]
+dfc_anglo <- dfc_anglo[dfc$Gender %in% c(1, 2), ]
 
 # Create continuous ideology variable
-dfc$ide <- (dfc$Politics2_1 + dfc$Politics2_9) / 2
+dfc_anglo$dfc_anglo <- (dfc_anglo$Politics2_1 + dfc_anglo$Politics2_9) / 2
 
 # Create median split ideology variable
 new <- list()
-for (country in unique(dfc$Country)) {
-  sub <- dfc[dfc$Country == country, ] # Filter for rows in the current country
+for (country in unique(dfc_anglo$Country)) {
+  sub <- dfc_anglo[dfc_anglo$Country == country, ] # Filter for rows in the current country
   country_median <- median(sub$ide, na.rm = TRUE) # Calculate the median of ide within this country
   sub$Ideology <- as.numeric(sub$ide > country_median) # Perform the median split and convert to numeric (0 or 1)
   
@@ -398,13 +382,13 @@ for (country in unique(dfc$Country)) {
 }
 
 # Combine all subsets back into a single data frame
-dfc <- do.call(rbind, new)
+dfc_anglo <- do.call(rbind, new)
 ```
 
 ```{r ideology (continuous)}
 #continuous ideology variable
 M <- lmer(willingness ~ Term*ide + (1 | Country), data = dfc)
-generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/main_ide_cont.tex")
+generate_model_and_latex_output(M, "willingness", "../overleaf/tabs_Anglo/main_ide_cont.tex")
 print(summary(M))
 confint(M)
 
@@ -415,8 +399,8 @@ print(anova_result)
 
 ```{r ideology (median split)}
 #median-split ideology variable
-M <- lmer(willingness ~ Term*Ideology + (1 | Country), data = dfc)
-generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/main_ide_ms.tex")
+M <- lmer(willingness ~ Term*Ideology + (1 | Country), data = dfc_anglo)
+generate_model_and_latex_output(M, "willingness", "../overleaf/tabs_Anglo/main_ide_ms.tex")
 print(summary(M))
 confint(M)
 
@@ -426,8 +410,8 @@ print(anova_result)
 ```
 
 ```{r SES}
-M <- lmer(willingness ~ Term*MacArthur_SES + (1 | Country), data = dfc)
-generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/main_SES.tex")
+M <- lmer(willingness ~ Term*MacArthur_SES + (1 | Country), data = dfc_anglo)
+generate_model_and_latex_output(M, "willingness", "../overleaf/tabs_Anglo/main_SES.tex")
 print(summary(M))
 confint(M)
 
@@ -437,8 +421,8 @@ print(anova_result)
 ```
 
 ```{r gender}
-M <- lmer(willingness ~ Term*Gender + (1 | Country), data = dfc)
-generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/main_gender.tex")
+M <- lmer(willingness ~ Term*Gender + (1 | Country), data = dfc_anglo)
+generate_model_and_latex_output(M, "willingness", "../overleaf/tabs_Anglo/main_gender.tex")
 print(summary(M))
 confint(M)
 
@@ -448,8 +432,8 @@ print(anova_result)
 ```
 
 ```{r age}
-M <- lmer(willingness ~ Term*Age + (1 | Country), data = dfc)
-generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/main_age.tex")
+M <- lmer(willingness ~ Term*Age + (1 | Country), data = dfc_anglo)
+generate_model_and_latex_output(M, "willingness", "../overleaf/tabs_Anglo/main_age.tex")
 print(summary(M))
 confint(M)
 
@@ -459,199 +443,8 @@ print(anova_result)
 ```
 
 ```{r edu}
-M <- lmer(willingness ~ Term*Edu + (1 | Country), data = dfc)
-generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/main_edu.tex")
-print(summary(M))
-confint(M)
-
-print(paste("------------------ ANOVA with type III sum of squares:------------------"))
-anova_result <- car::Anova(M, type = "III")
-print(anova_result)
-```
-
-# Contrast Analyses 
-```{r contrasts}
-# Fit the linear mixed-effects model using lmer
-M <- lmer(willingness ~ Term + (1 | Country), data = df_main)
-
-# Define the contrasts
-contrasts <- rbind(
-  "Urgency vs. Neutral" = c(-1, -1, 1, 1, -1, -1, -1, 1, 1),
-  "Scientific vs. Colloquial" = c(1, 0, 0, 1, 1, -1, 1, 0, -1),
-  "Specific Threat vs. General Phenomenon" = c(-1, -1, 1, 1, -1, -1, 0, 1, 1)
-)
-
-# Ensure contrasts sum to zero
-print(rowSums(contrasts))
-
-# Perform the contrast analysis
-contrast_test <- glht(M, linfct = mcp(Term = contrasts))
-summary(contrast_test)
-```
-
-# Bayesian Analysis
-```{r bayes}
-df_main$Country <- as.factor(df_main$Country)
-df_main$Term <- as.factor(df_main$Term)
-
-anovaBF(formula = willingness ~ Term,
-        data = data.frame(df_main),
-        whichRandom = "Country")
-```
-
-# Experiment 1 Exploratory Analyses
-```{r load predictor data, echo=FALSE}
-predictordata <- read_excel("../data/PredictorData.xlsx", na = "NA")
-
-# Perform a left join by "Country" column
-df_control <- df_control %>%
-  left_join(predictordata, by = "Country")
-
-# Rename column "IndividualismHI" to "Ind_score"
-df_control <- df_control %>%
-  rename(Ind_score = IndividualismHI)
-```
-
-```{r clean}
-# Calculate the average for Enviro_ID variables
-df_control <- df_control %>%
-  mutate(Enviro_ID_avg = rowMeans(across(starts_with("Enviro_ID_")), na.rm = TRUE))
-
-# Define columns for Enviro_motiv variables
-enviro_motiv_columns <- c("Enviro_motiv_1", "Enviro_motiv_11", "Enviro_motiv_12", 
-                          "Enviro_motiv_13", "Enviro_motiv_14", "Enviro_motiv_15", 
-                          "Enviro_motiv_16", "Enviro_motiv_17", "Enviro_motiv_18", 
-                          "Enviro_motiv_20")
-
-# Calculate the average for Enviro_motiv variables
-df_control <- df_control %>%
-  mutate(Enviro_motiv_avg = rowMeans(across(all_of(enviro_motiv_columns)), na.rm = TRUE))
-```
-
-```{r make another long}
-# Transform the dataframe from wide to long format
-df_long1 <- df_control %>%
-  pivot_longer(
-    cols = c("Climate_Change", "Global_Warming", "Global_Heating", "Climate_Crisis", 
-             "Greenhouse_Effect", "Carbon_Emissions", "Greenhouse_Gasses", "Climate_Emergency", 
-             "Carbon_Pollution"),
-    names_to = "Term",
-    values_to = "willingness"
-  ) %>%
-  # Replace specific values in the 'Term' column
-  mutate(Term = ifelse(Term == "Climate_Change", "AClimate_Change", Term)) %>%
-  dplyr::select(ResponseId, Country, Gender, Trust_sci1_1, Trust_sci2_1, Trust_gov_1, ID_hum_1, ID_GC_1, 
-         Enviro_ID_avg, Enviro_motiv_avg, PlurIgnoranceItem_1, PerceivedSciConsensu_1, Ind_score, 
-         willingness, Term)
-
-# Remove rows with missing data and filter for Gender values of 1 or 2
-dfc1 <- df_long1 %>%
-  drop_na() %>%
-  filter(Gender == 1 | Gender == 2)
-```
-
-```{r trustsci1}
-M <- lmer(willingness ~ Term*Trust_sci1_1 + (1 | Country), data = dfc1)
-generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/exp_trustsci1.tex")
-print(summary(M))
-confint(M)
-
-print(paste("------------------ ANOVA with type III sum of squares:------------------"))
-anova_result <- car::Anova(M, type = "III")
-print(anova_result)
-```
-
-```{r trustsci2}
-M <- lmer(willingness ~ Term*Trust_sci2_1 + (1 | Country), data = dfc1)
-generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/exp_trustsci2.tex")
-print(summary(M))
-confint(M)
-
-print(paste("------------------ ANOVA with type III sum of squares:------------------"))
-anova_result <- car::Anova(M, type = "III")
-print(anova_result)
-```
-
-```{r trustgov}
-M <- lmer(willingness ~ Term*Trust_gov_1 + (1 | Country), data = dfc1)
-generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/exp_trustgov.tex")
-print(summary(M))
-confint(M)
-
-print(paste("------------------ ANOVA with type III sum of squares:------------------"))
-anova_result <- car::Anova(M, type = "III")
-print(anova_result)
-```
-
-```{r care human welfare}
-M <- lmer(willingness ~ Term*ID_hum_1 + (1 | Country), data = dfc1)
-generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/exp_carehumwel.tex")
-print(summary(M))
-confint(M)
-
-print(paste("------------------ ANOVA with type III sum of squares:------------------"))
-anova_result <- car::Anova(M, type = "III")
-print(anova_result)
-```
-
-```{r global citizen}
-M <- lmer(willingness ~ Term*ID_GC_1 + (1 | Country), data = dfc1)
-generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/exp_globalcitizen.tex")
-print(summary(M))
-confint(M)
-
-print(paste("------------------ ANOVA with type III sum of squares:------------------"))
-anova_result <- car::Anova(M, type = "III")
-print(anova_result)
-```
-
-```{r enviro ID}
-M <- lmer(willingness ~ Term*Enviro_ID_avg + (1 | Country), data = dfc1)
-generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/exp_envirid.tex")
-print(summary(M))
-confint(M)
-
-print(paste("------------------ ANOVA with type III sum of squares:------------------"))
-anova_result <- car::Anova(M, type = "III")
-print(anova_result)
-```
-
-```{r enviro motiv}
-M <- lmer(willingness ~ Term*Enviro_motiv_avg + (1 | Country), data = dfc1)
-generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/exp_envirmot.tex")
-print(summary(M))
-confint(M)
-
-print(paste("------------------ ANOVA with type III sum of squares:------------------"))
-anova_result <- car::Anova(M, type = "III")
-print(anova_result)
-```
-
-```{r pluralistic ignorance}
-M <- lmer(willingness ~ Term*PlurIgnoranceItem_1 + (1 | Country), data = dfc1)
-generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/exp_plurig.tex")
-print(summary(M))
-confint(M)
-
-print(paste("------------------ ANOVA with type III sum of squares:------------------"))
-anova_result <- car::Anova(M, type = "III")
-print(anova_result)
-```
-
-```{r perceived sci consensus}
-M <- lmer(willingness ~ Term*PerceivedSciConsensu_1 + (1 | Country), data = dfc1)
-generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/exp_scicons.tex")
-print(summary(M))
-confint(M)
-
-print(paste("------------------ ANOVA with type III sum of squares:------------------"))
-anova_result <- car::Anova(M, type = "III")
-print(anova_result)
-```
-
-```{r individualism}
-M <- lmer(willingness ~ Term*Ind_score + (1 | Country), data = dfc1)
-generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/exp_ind.tex")
+M <- lmer(willingness ~ Term*Edu + (1 | Country), data = dfc_anglo)
+generate_model_and_latex_output(M, "willingness", "../overleaf/tabs_Anglo/main_edu.tex")
 print(summary(M))
 confint(M)
 
