@@ -1,0 +1,453 @@
+---
+title: "Climate Terms Supplemental Analyses"
+author: "Danielle Goldwert"
+date: "2024-10-24"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warnings=FALSE, width = 80)
+```
+
+```{r install libraries}
+library(readr)
+library(tidyr)
+library(lme4)
+library(lmerTest)
+library(car)
+library(dplyr)
+library(nlme)
+library(xtable) #for creating LaTeX compatible tables
+library(tidyverse)
+library(readxl)
+library(multcomp) # for Tukeys HSD
+library(BayesFactor) # for Bayes
+```
+
+# create helper functions
+```{r helper: lmer}
+generate_model_and_latex_output <- function(model, response_var, output_file_tex) {
+  
+  # Summarize the model
+  model_summary <- summary(model)
+  
+  # Extract fixed effects
+  fixed_effects <- as.data.frame(coef(summary(model)))
+  
+  # Extract confidence intervals for fixed effects
+  conf_int <- confint(model, parm = "beta_", level = 0.95)
+  
+  # Get the fixed effects names
+  fe_names <- rownames(fixed_effects)
+  
+  # Remove "Term" from the Condition names and replace underscores with spaces
+  Condition <- gsub("Term", "", fe_names)
+  Condition <- gsub("_", " ", Condition)
+  fixed_effects$Condition <- Condition
+  
+  # Match the confidence intervals with fixed effects
+  conf_int_fe <- conf_int[fe_names, ]
+  LL <- conf_int_fe[, 1]
+  UL <- conf_int_fe[, 2]
+  fixed_effects$LL <- LL
+  fixed_effects$UL <- UL
+  
+  # Create the "95% CI [LL, UL]" column
+  fixed_effects$CI <- paste0("[", sprintf("%.2f", LL), ", ", sprintf("%.2f", UL), "]")
+  
+  # Process p-values
+  p_values <- fixed_effects$"Pr(>|t|)"
+  p_values_formatted <- ifelse(p_values < 0.001, "< .001", sub("^0\\.", ".", sprintf("%.3f", p_values)))
+  
+  # Bold p-values less than .006
+  p_bold <- p_values < 0.006
+  p_values_formatted <- ifelse(p_bold, paste0("\\textbf{", p_values_formatted, "}"), p_values_formatted)
+  
+  # Format numeric columns
+  format_num <- function(x, digits) sprintf(paste0("%.", digits, "f"), as.numeric(x))
+  
+  # Create the result data frame with check.names = FALSE
+  result_df <- data.frame(
+    Condition = fixed_effects$Condition,
+    Estimate = format_num(fixed_effects$Estimate, 2),
+    "\\textit{SE}" = format_num(fixed_effects$"Std. Error", 2),
+    "\\textit{df}" = format_num(fixed_effects$df, 2),
+    "\\textit{t}" = format_num(fixed_effects$"t value", 2),
+    "\\textit{p}" = p_values_formatted,
+    "95\\% CI [LL, UL]" = fixed_effects$CI,
+    stringsAsFactors = FALSE,
+    check.names = FALSE  # Prevent R from changing column names
+  )
+  
+  # Set alignment for columns (length should be ncol + 1)
+  align_spec <- c("l", "l", "r", "r", "r", "r", "r", "l")  # Adjusted length to 8
+  
+  # Define a sanitization function to handle special characters
+  sanitize <- function(str) {
+    # Escape LaTeX special characters except for backslash and braces
+    result <- str
+    result <- gsub("([#$%&_])", "\\\\\\1", result)  # Escape special characters
+    result <- gsub("~", "\\\\textasciitilde ", result)
+    result <- gsub("\\^", "\\\\textasciicircum ", result)
+    result <- gsub("<", "\\\\textless ", result)
+    result <- gsub(">", "\\\\textgreater ", result)
+    # Do not escape backslashes or braces to allow LaTeX commands
+    return(result)
+  }
+  
+  # Convert the table to a LaTeX-friendly format
+  latex_table <- xtable(result_df, align = align_spec)
+  
+  # Save the LaTeX table to a .tex file
+  print(latex_table, include.rownames = FALSE,
+        sanitize.text.function = sanitize, 
+        sanitize.colnames.function = identity,  # Use identity to keep LaTeX in column names
+        file = output_file_tex)
+}
+```
+
+```{r helper: lm}
+generate_lm_model_and_latex_output <- function(model, response_var, output_file_tex) {
+  
+  # Load necessary libraries
+  library(xtable)
+  
+  # Summarize the model
+  model_summary <- summary(model)
+  
+  # Extract fixed effects (coefficients) and degrees of freedom for lm models
+  fixed_effects <- as.data.frame(model_summary$coefficients)
+  df <- model$df.residual  # Degrees of freedom for residuals
+  
+  # Get the confidence intervals
+  conf_int <- confint(model, level = 0.95)
+  
+  # Get the fixed effects names
+  fe_names <- rownames(fixed_effects)
+  
+  # Remove "(Term)" from the Condition names and replace underscores with spaces
+  Condition <- gsub("Term", "", fe_names)
+  Condition <- gsub("_", " ", Condition)
+  fixed_effects$Condition <- Condition
+  
+  # Match the confidence intervals with fixed effects
+  LL <- conf_int[, 1]
+  UL <- conf_int[, 2]
+  fixed_effects$LL <- LL
+  fixed_effects$UL <- UL
+  
+  # Create the "95% CI [LL, UL]" column
+  fixed_effects$CI <- paste0("[", sprintf("%.2f", LL), ", ", sprintf("%.2f", UL), "]")
+  
+  # Process p-values
+  p_values <- fixed_effects$"Pr(>|t|)"
+  p_values_formatted <- ifelse(p_values < 0.001, "< .001", sub("^0\\.", ".", sprintf("%.3f", p_values)))
+  
+  # Bold p-values less than .006
+  p_bold <- p_values < 0.006
+  p_values_formatted <- ifelse(p_bold, paste0("\\textbf{", p_values_formatted, "}"), p_values_formatted)
+  
+  # Format numeric columns
+  format_num <- function(x, digits) sprintf(paste0("%.", digits, "f"), as.numeric(x))
+  
+  # Create the result data frame with check.names = FALSE
+  result_df <- data.frame(
+    Condition = fixed_effects$Condition,
+    Estimate = format_num(fixed_effects$Estimate, 2),
+    "\\textit{SE}" = format_num(fixed_effects$"Std. Error", 2),
+    "\\textit{df}" = df,
+    "\\textit{t}" = format_num(fixed_effects$"t value", 2),
+    "\\textit{p}" = p_values_formatted,
+    "95\\% CI [LL, UL]" = fixed_effects$CI,
+    stringsAsFactors = FALSE,
+    check.names = FALSE  # Prevent R from changing column names
+  )
+  
+  # Set alignment for columns (length should be ncol + 1)
+  align_spec <- c("l", "l", "r", "r", "r", "r", "r", "l")  # Adjusted length to 8
+  
+  # Define a sanitization function to handle special characters
+  sanitize <- function(str) {
+    # Escape LaTeX special characters except for backslash and braces
+    result <- str
+    result <- gsub("([#$%&_])", "\\\\\\1", result)  # Escape special characters
+    result <- gsub("~", "\\\\textasciitilde ", result)
+    result <- gsub("\\^", "\\\\textasciicircum ", result)
+    result <- gsub("<", "\\\\textless ", result)
+    result <- gsub(">", "\\\\textgreater ", result)
+    # Do not escape backslashes or braces to allow LaTeX commands
+    return(result)
+  }
+  
+  # Convert the table to a LaTeX-friendly format
+  latex_table <- xtable(result_df, align = align_spec)
+  
+  # Save the LaTeX table to a .tex file
+  print(latex_table, include.rownames = FALSE,
+        sanitize.text.function = sanitize, 
+        sanitize.colnames.function = identity,  # Use identity to keep LaTeX in column names
+        file = output_file_tex)
+}
+```
+
+# data cleaning
+```{r load dataset, echo=FALSE}
+df <- read_excel("../data/data63.xlsx", na = "NA")
+```
+
+```{r cleaning}
+# Subset the control condition
+df_control <- df %>% filter(cond == 1)
+
+# Rename columns
+df_control <- df_control %>%
+  rename(
+    Climate_Change = probe_CC_1,
+    Global_Warming = probe_GW_1,
+    Global_Heating = probe_GH_1,
+    Climate_Crisis = probe_CCrisis_1,
+    Greenhouse_Effect = probe_GE_1,
+    Carbon_Emissions = probe_CE_1,
+    Greenhouse_Gasses = probe_CP_1,
+    Climate_Emergency = probe_CEmerg_1,
+    Carbon_Pollution = probe_CPoll_1
+  )
+
+# Define the list of columns to check for missing values
+columns_to_check <- c("Climate_Change", "Global_Warming", "Global_Heating", 
+                      "Climate_Crisis", "Greenhouse_Effect", "Carbon_Emissions", 
+                      "Greenhouse_Gasses", "Climate_Emergency", "Carbon_Pollution")
+
+# Remove rows where all specified columns have missing values and calculate rows removed
+initial_row_count <- nrow(df_control)
+df_control <- df_control %>% filter(!if_all(all_of(columns_to_check), is.na))
+rows_removed <- initial_row_count - nrow(df_control)
+
+# Print the number of rows removed
+print(paste("Number of rows removed:", rows_removed))
+```
+
+```{r create long dataframe}
+# Transform the dataframe to long format and select specified columns
+df_long <- df_control %>%
+  pivot_longer(
+    cols = c("Climate_Change", "Global_Warming", "Global_Heating", "Climate_Crisis", 
+             "Greenhouse_Effect", "Carbon_Emissions", "Greenhouse_Gasses", 
+             "Climate_Emergency", "Carbon_Pollution"),
+    names_to = "Term",       # Column name for variable names
+    values_to = "willingness" # Column name for the values
+  ) %>%
+  dplyr::select(ResponseId, Politics2_1, Politics2_9, Age, Country, BELIEFcc, Gender, Income, 
+                MacArthur_SES, Edu, willingness, Term) # Retain only specified columns
+
+# Display the transformed data
+print(df_long)
+```
+
+```{r}
+# Select specified columns and remove rows with any NA values
+# Explicitly use dplyr::select to avoid namespace issues
+df_main <- df_long %>%
+  dplyr::select(ResponseId, Country, Term, willingness) %>%
+  drop_na()
+
+# Display the resulting dataframe
+print(df_main)
+```
+
+```{r}
+# Replace "Climate_Change" with "AClimate_Change" in the Term column for df_long
+df_long <- df_long %>%
+  mutate(Term = ifelse(Term == "Climate_Change", "AClimate_Change", Term))
+
+# Replace "Climate_Change" with "AClimate_Change" in the Term column for df_main
+df_main <- df_main %>%
+  mutate(Term = ifelse(Term == "Climate_Change", "AClimate_Change", Term))
+
+# Ensure 'Term' is a factor in the data
+df_main$Term <- as.factor(df_main$Term)
+df_long$Term <- as.factor(df_long$Term)
+```
+
+# Contrast Analyses 
+```{r contrasts}
+# Fit the linear mixed-effects model using lmer
+M <- lmer(willingness ~ Term + (1 | Country), data = df_main)
+
+# Define the contrasts
+contrasts <- rbind(
+  "Urgency vs. Neutral" = c(-1, -1, 1, 1, -1, -1, -1, 1, 1),
+  "Scientific vs. Colloquial" = c(1, 0, 0, 1, 1, -1, 1, 0, -1),
+  "Specific Threat vs. General Phenomenon" = c(-1, -1, 1, 1, -1, -1, 0, 1, 1)
+)
+
+# Ensure contrasts sum to zero
+print(rowSums(contrasts))
+
+# Perform the contrast analysis
+contrast_test <- glht(M, linfct = mcp(Term = contrasts))
+summary(contrast_test)
+```
+
+# Experiment 1 Exploratory Analyses
+```{r load predictor data, echo=FALSE}
+predictordata <- read_excel("../data/PredictorData.xlsx", na = "NA")
+
+# Perform a left join by "Country" column
+df_control <- df_control %>%
+  left_join(predictordata, by = "Country")
+
+# Rename column "IndividualismHI" to "Ind_score"
+df_control <- df_control %>%
+  rename(Ind_score = IndividualismHI)
+```
+
+```{r clean}
+# Calculate the average for Enviro_ID variables
+df_control <- df_control %>%
+  mutate(Enviro_ID_avg = rowMeans(across(starts_with("Enviro_ID_")), na.rm = TRUE))
+
+# Define columns for Enviro_motiv variables
+enviro_motiv_columns <- c("Enviro_motiv_1", "Enviro_motiv_11", "Enviro_motiv_12", 
+                          "Enviro_motiv_13", "Enviro_motiv_14", "Enviro_motiv_15", 
+                          "Enviro_motiv_16", "Enviro_motiv_17", "Enviro_motiv_18", 
+                          "Enviro_motiv_20")
+
+# Calculate the average for Enviro_motiv variables
+df_control <- df_control %>%
+  mutate(Enviro_motiv_avg = rowMeans(across(all_of(enviro_motiv_columns)), na.rm = TRUE))
+```
+
+```{r make another long}
+# Transform the dataframe from wide to long format
+df_long1 <- df_control %>%
+  pivot_longer(
+    cols = c("Climate_Change", "Global_Warming", "Global_Heating", "Climate_Crisis", 
+             "Greenhouse_Effect", "Carbon_Emissions", "Greenhouse_Gasses", "Climate_Emergency", 
+             "Carbon_Pollution"),
+    names_to = "Term",
+    values_to = "willingness"
+  ) %>%
+  # Replace specific values in the 'Term' column
+  mutate(Term = ifelse(Term == "Climate_Change", "AClimate_Change", Term)) %>%
+  dplyr::select(ResponseId, Country, Gender, Trust_sci1_1, Trust_sci2_1, Trust_gov_1, ID_hum_1, ID_GC_1, 
+         Enviro_ID_avg, Enviro_motiv_avg, PlurIgnoranceItem_1, PerceivedSciConsensu_1, Ind_score, 
+         willingness, Term)
+
+# Remove rows with missing data and filter for Gender values of 1 or 2
+dfc1 <- df_long1 %>%
+  drop_na() %>%
+  filter(Gender == 1 | Gender == 2)
+```
+
+```{r trustsci1}
+M <- lmer(willingness ~ Term*Trust_sci1_1 + (1 | Country), data = dfc1)
+generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/exp_trustsci1.tex")
+print(summary(M))
+confint(M)
+
+print(paste("------------------ ANOVA with type III sum of squares:------------------"))
+anova_result <- car::Anova(M, type = "III")
+print(anova_result)
+```
+
+```{r trustsci2}
+M <- lmer(willingness ~ Term*Trust_sci2_1 + (1 | Country), data = dfc1)
+generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/exp_trustsci2.tex")
+print(summary(M))
+confint(M)
+
+print(paste("------------------ ANOVA with type III sum of squares:------------------"))
+anova_result <- car::Anova(M, type = "III")
+print(anova_result)
+```
+
+```{r trustgov}
+M <- lmer(willingness ~ Term*Trust_gov_1 + (1 | Country), data = dfc1)
+generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/exp_trustgov.tex")
+print(summary(M))
+confint(M)
+
+print(paste("------------------ ANOVA with type III sum of squares:------------------"))
+anova_result <- car::Anova(M, type = "III")
+print(anova_result)
+```
+
+```{r care human welfare}
+M <- lmer(willingness ~ Term*ID_hum_1 + (1 | Country), data = dfc1)
+generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/exp_carehumwel.tex")
+print(summary(M))
+confint(M)
+
+print(paste("------------------ ANOVA with type III sum of squares:------------------"))
+anova_result <- car::Anova(M, type = "III")
+print(anova_result)
+```
+
+```{r global citizen}
+M <- lmer(willingness ~ Term*ID_GC_1 + (1 | Country), data = dfc1)
+generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/exp_globalcitizen.tex")
+print(summary(M))
+confint(M)
+
+print(paste("------------------ ANOVA with type III sum of squares:------------------"))
+anova_result <- car::Anova(M, type = "III")
+print(anova_result)
+```
+
+```{r enviro ID}
+M <- lmer(willingness ~ Term*Enviro_ID_avg + (1 | Country), data = dfc1)
+generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/exp_envirid.tex")
+print(summary(M))
+confint(M)
+
+print(paste("------------------ ANOVA with type III sum of squares:------------------"))
+anova_result <- car::Anova(M, type = "III")
+print(anova_result)
+```
+
+```{r enviro motiv}
+M <- lmer(willingness ~ Term*Enviro_motiv_avg + (1 | Country), data = dfc1)
+generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/exp_envirmot.tex")
+print(summary(M))
+confint(M)
+
+print(paste("------------------ ANOVA with type III sum of squares:------------------"))
+anova_result <- car::Anova(M, type = "III")
+print(anova_result)
+```
+
+```{r pluralistic ignorance}
+M <- lmer(willingness ~ Term*PlurIgnoranceItem_1 + (1 | Country), data = dfc1)
+generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/exp_plurig.tex")
+print(summary(M))
+confint(M)
+
+print(paste("------------------ ANOVA with type III sum of squares:------------------"))
+anova_result <- car::Anova(M, type = "III")
+print(anova_result)
+```
+
+```{r perceived sci consensus}
+M <- lmer(willingness ~ Term*PerceivedSciConsensu_1 + (1 | Country), data = dfc1)
+generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/exp_scicons.tex")
+print(summary(M))
+confint(M)
+
+print(paste("------------------ ANOVA with type III sum of squares:------------------"))
+anova_result <- car::Anova(M, type = "III")
+print(anova_result)
+```
+
+```{r individualism}
+M <- lmer(willingness ~ Term*Ind_score + (1 | Country), data = dfc1)
+generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/exp_ind.tex")
+print(summary(M))
+confint(M)
+
+print(paste("------------------ ANOVA with type III sum of squares:------------------"))
+anova_result <- car::Anova(M, type = "III")
+print(anova_result)
+```

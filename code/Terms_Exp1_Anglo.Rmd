@@ -1,5 +1,5 @@
 ---
-title: "Climate Terms US-only Analyses"
+title: "Climate Terms Anglosphere-only Analyses"
 author: "Danielle Goldwert"
 date: "2024-10-24"
 output:
@@ -74,90 +74,6 @@ generate_model_and_latex_output <- function(model, response_var, output_file_tex
     Estimate = format_num(fixed_effects$Estimate, 2),
     "\\textit{SE}" = format_num(fixed_effects$"Std. Error", 2),
     "\\textit{df}" = format_num(fixed_effects$df, 2),
-    "\\textit{t}" = format_num(fixed_effects$"t value", 2),
-    "\\textit{p}" = p_values_formatted,
-    "95\\% CI [LL, UL]" = fixed_effects$CI,
-    stringsAsFactors = FALSE,
-    check.names = FALSE  # Prevent R from changing column names
-  )
-  
-  # Set alignment for columns (length should be ncol + 1)
-  align_spec <- c("l", "l", "r", "r", "r", "r", "r", "l")  # Adjusted length to 8
-  
-  # Define a sanitization function to handle special characters
-  sanitize <- function(str) {
-    # Escape LaTeX special characters except for backslash and braces
-    result <- str
-    result <- gsub("([#$%&_])", "\\\\\\1", result)  # Escape special characters
-    result <- gsub("~", "\\\\textasciitilde ", result)
-    result <- gsub("\\^", "\\\\textasciicircum ", result)
-    result <- gsub("<", "\\\\textless ", result)
-    result <- gsub(">", "\\\\textgreater ", result)
-    # Do not escape backslashes or braces to allow LaTeX commands
-    return(result)
-  }
-  
-  # Convert the table to a LaTeX-friendly format
-  latex_table <- xtable(result_df, align = align_spec)
-  
-  # Save the LaTeX table to a .tex file
-  print(latex_table, include.rownames = FALSE,
-        sanitize.text.function = sanitize, 
-        sanitize.colnames.function = identity,  # Use identity to keep LaTeX in column names
-        file = output_file_tex)
-}
-```
-
-```{r helper: lm}
-generate_lm_model_and_latex_output <- function(model, response_var, output_file_tex) {
-  
-  # Load necessary libraries
-  library(xtable)
-  
-  # Summarize the model
-  model_summary <- summary(model)
-  
-  # Extract fixed effects (coefficients) and degrees of freedom for lm models
-  fixed_effects <- as.data.frame(model_summary$coefficients)
-  df <- model$df.residual  # Degrees of freedom for residuals
-  
-  # Get the confidence intervals
-  conf_int <- confint(model, level = 0.95)
-  
-  # Get the fixed effects names
-  fe_names <- rownames(fixed_effects)
-  
-  # Remove "(Term)" from the Condition names and replace underscores with spaces
-  Condition <- gsub("Term", "", fe_names)
-  Condition <- gsub("_", " ", Condition)
-  fixed_effects$Condition <- Condition
-  
-  # Match the confidence intervals with fixed effects
-  LL <- conf_int[, 1]
-  UL <- conf_int[, 2]
-  fixed_effects$LL <- LL
-  fixed_effects$UL <- UL
-  
-  # Create the "95% CI [LL, UL]" column
-  fixed_effects$CI <- paste0("[", sprintf("%.2f", LL), ", ", sprintf("%.2f", UL), "]")
-  
-  # Process p-values
-  p_values <- fixed_effects$"Pr(>|t|)"
-  p_values_formatted <- ifelse(p_values < 0.001, "< .001", sub("^0\\.", ".", sprintf("%.3f", p_values)))
-  
-  # Bold p-values less than .006
-  p_bold <- p_values < 0.006
-  p_values_formatted <- ifelse(p_bold, paste0("\\textbf{", p_values_formatted, "}"), p_values_formatted)
-  
-  # Format numeric columns
-  format_num <- function(x, digits) sprintf(paste0("%.", digits, "f"), as.numeric(x))
-  
-  # Create the result data frame with check.names = FALSE
-  result_df <- data.frame(
-    Condition = fixed_effects$Condition,
-    Estimate = format_num(fixed_effects$Estimate, 2),
-    "\\textit{SE}" = format_num(fixed_effects$"Std. Error", 2),
-    "\\textit{df}" = df,
     "\\textit{t}" = format_num(fixed_effects$"t value", 2),
     "\\textit{p}" = p_values_formatted,
     "95\\% CI [LL, UL]" = fixed_effects$CI,
@@ -329,15 +245,19 @@ df_main$Term <- as.factor(df_main$Term)
 df_long$Term <- as.factor(df_long$Term)
 ```
 
-```{r make US df}
-df_main_US <- df_main[df_main$Country == "usa", ]
-print(paste("N in USA data:", (nrow(df_main_US))))
+```{r make Anglo df}
+# Define the list of majority English-speaking countries
+anglo <- c("usa", "uk", "canada", "australia", "newzealand")
+
+# Filter the data frame for these countries
+df_main_anglo <- df_main[df_main$Country %in% anglo, ]
+print(paste("N in Anglosphere data:", (nrow(df_main_anglo))))
 ```
 
-# US Analyses
+# Anglosphere Analyses
 ```{r main}
-M <- lm(willingness ~ Term, data = df_main_US)
-generate_lm_model_and_latex_output(M, "willingness", "../overleaf/tabs_US/US.tex")
+M <- lmer(willingness ~ Term + (1 | Country), data = df_main_anglo)
+generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/anglo.tex")
 print(summary(M))
 confint(M)
 
@@ -348,24 +268,27 @@ print(anova_result)
 
 # Interactions
 ```{r clean long data}
-# Filter for specified countries
-df_long_US <- df_long %>%
-  filter(Country %in% c("usa"))
+# Define the list of majority English-speaking countries
+countries1 <- c("usa", "uk", "canada", "australia", "newzealand")
+
+# Filter the data for these countries
+df_long_anglo <- df_long1 %>%
+  filter(Country %in% countries1)
 
 # Remove rows with missing data
-dfc_US <- df_long_US %>%
+dfc_anglo <- df_long_anglo %>%
   drop_na()
 
 # Remove participants whose Gender is not 1 or 2
-dfc_US <- dfc_US[dfc$Gender %in% c(1, 2), ]
+dfc_anglo <- dfc_anglo[dfc_anglo$Gender %in% c(1, 2), ]
 
 # Create continuous ideology variable
-dfc_US$dfc_US <- (dfc_US$Politics2_1 + dfc_US$Politics2_9) / 2
+dfc_anglo$ide <- (dfc_anglo$Politics2_1 + dfc_anglo$Politics2_9) / 2
 
 # Create median split ideology variable
 new <- list()
-for (country in unique(dfc_US$Country)) {
-  sub <- dfc_US[dfc_US$Country == country, ] # Filter for rows in the current country
+for (country in unique(dfc_anglo$Country)) {
+  sub <- dfc_anglo[dfc_anglo$Country == country, ] # Filter for rows in the current country
   country_median <- median(sub$ide, na.rm = TRUE) # Calculate the median of ide within this country
   sub$Ideology <- as.numeric(sub$ide > country_median) # Perform the median split and convert to numeric (0 or 1)
   
@@ -375,13 +298,13 @@ for (country in unique(dfc_US$Country)) {
 }
 
 # Combine all subsets back into a single data frame
-dfc_US <- do.call(rbind, new)
+dfc_anglo <- do.call(rbind, new)
 ```
 
 ```{r ideology (continuous)}
 #continuous ideology variable
 M <- lmer(willingness ~ Term*ide + (1 | Country), data = dfc)
-generate_model_and_latex_output(M, "willingness", "../overleaf/tabs_US/main_ide_cont.tex")
+generate_model_and_latex_output(M, "willingness", "../overleaf/tabs_Anglo/main_ide_cont.tex")
 print(summary(M))
 confint(M)
 
@@ -392,8 +315,8 @@ print(anova_result)
 
 ```{r ideology (median split)}
 #median-split ideology variable
-M <- lmer(willingness ~ Term*Ideology + (1 | Country), data = dfc_US)
-generate_model_and_latex_output(M, "willingness", "../overleaf/tabs_US/main_ide_ms.tex")
+M <- lmer(willingness ~ Term*Ideology + (1 | Country), data = dfc_anglo)
+generate_model_and_latex_output(M, "willingness", "../overleaf/tabs_Anglo/main_ide_ms.tex")
 print(summary(M))
 confint(M)
 
@@ -403,8 +326,8 @@ print(anova_result)
 ```
 
 ```{r SES}
-M <- lmer(willingness ~ Term*MacArthur_SES + (1 | Country), data = dfc_US)
-generate_model_and_latex_output(M, "willingness", "../overleaf/tabs_US/main_SES.tex")
+M <- lmer(willingness ~ Term*MacArthur_SES + (1 | Country), data = dfc_anglo)
+generate_model_and_latex_output(M, "willingness", "../overleaf/tabs_Anglo/main_SES.tex")
 print(summary(M))
 confint(M)
 
@@ -414,8 +337,8 @@ print(anova_result)
 ```
 
 ```{r gender}
-M <- lmer(willingness ~ Term*Gender + (1 | Country), data = dfc_US)
-generate_model_and_latex_output(M, "willingness", "../overleaf/tabs_US/main_gender.tex")
+M <- lmer(willingness ~ Term*Gender + (1 | Country), data = dfc_anglo)
+generate_model_and_latex_output(M, "willingness", "../overleaf/tabs_Anglo/main_gender.tex")
 print(summary(M))
 confint(M)
 
@@ -425,8 +348,8 @@ print(anova_result)
 ```
 
 ```{r age}
-M <- lmer(willingness ~ Term*Age + (1 | Country), data = dfc_US)
-generate_model_and_latex_output(M, "willingness", "../overleaf/tabs_US/main_age.tex")
+M <- lmer(willingness ~ Term*Age + (1 | Country), data = dfc_anglo)
+generate_model_and_latex_output(M, "willingness", "../overleaf/tabs_Anglo/main_age.tex")
 print(summary(M))
 confint(M)
 
@@ -436,8 +359,8 @@ print(anova_result)
 ```
 
 ```{r edu}
-M <- lmer(willingness ~ Term*Edu + (1 | Country), data = dfc_US)
-generate_model_and_latex_output(M, "willingness", "../overleaf/tabs_US/main_edu.tex")
+M <- lmer(willingness ~ Term*Edu + (1 | Country), data = dfc_anglo)
+generate_model_and_latex_output(M, "willingness", "../overleaf/tabs_Anglo/main_edu.tex")
 print(summary(M))
 confint(M)
 
