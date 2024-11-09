@@ -265,3 +265,95 @@ print(paste("------------------ ANOVA with type III sum of squares:-------------
 anova_result <- car::Anova(M, type = "III")
 print(anova_result)
 ```
+
+
+
+
+```{r}
+generate_model_and_latex_output <- function(model, response_var, output_file_tex) {
+  
+  # Load necessary libraries
+  library(xtable)
+  library(lmerTest)  # Ensure lmerTest is loaded for 'df' in summary
+  
+  # Summarize the model
+  model_summary <- summary(model)
+  
+  # Extract fixed effects
+  fixed_effects <- as.data.frame(coef(summary(model)))
+  
+  # Extract confidence intervals for fixed effects
+  conf_int <- confint(model, parm = "beta_", level = 0.95)
+  
+  # Get the fixed effects names
+  fe_names <- rownames(fixed_effects)
+  
+  # Remove "as.factor(Term)" from the Condition names and replace underscores with spaces
+  Condition <- gsub("as\\.factor\\(Term\\)", "", fe_names)
+  Condition <- gsub("_", " ", Condition)
+  fixed_effects$Condition <- Condition
+  
+  # Match the confidence intervals with fixed effects
+  conf_int_fe <- conf_int[fe_names, ]
+  LL <- conf_int_fe[, 1]
+  UL <- conf_int_fe[, 2]
+  fixed_effects$LL <- LL
+  fixed_effects$UL <- UL
+  
+  # Create the "95% CI [LL, UL]" column
+  fixed_effects$CI <- paste0("[", sprintf("%.2f", LL), ", ", sprintf("%.2f", UL), "]")
+  
+  # Process p-values
+  p_values <- fixed_effects$"Pr(>|t|)"
+  p_values_formatted <- ifelse(p_values < 0.001, "< .001", sub("^0\\.", ".", sprintf("%.3f", p_values)))
+  
+  # Bold p-values less than .006
+  p_bold <- p_values < 0.006
+  p_values_formatted <- ifelse(p_bold, paste0("\\textbf{", p_values_formatted, "}"), p_values_formatted)
+  
+  # Format numeric columns
+  format_num <- function(x, digits) sprintf(paste0("%.", digits, "f"), as.numeric(x))
+  
+  # Create the result data frame with check.names = FALSE
+  result_df <- data.frame(
+    Condition = fixed_effects$Condition,
+    Estimate = format_num(fixed_effects$Estimate, 2),
+    "\\textit{SE}" = format_num(fixed_effects$"Std. Error", 2),
+    "\\textit{df}" = format_num(fixed_effects$df, 2),
+    "\\textit{t}" = format_num(fixed_effects$"t value", 2),
+    "\\textit{p}" = p_values_formatted,
+    "95\\% CI [LL, UL]" = fixed_effects$CI,
+    stringsAsFactors = FALSE,
+    check.names = FALSE  # Prevent R from changing column names
+  )
+  
+  # Set alignment for columns (length should be ncol + 1)
+  align_spec <- c("l", "l", "r", "r", "r", "r", "r", "l")  # Adjusted length to 8
+  
+  # Define a sanitization function to handle special characters
+  sanitize <- function(str) {
+    # Escape LaTeX special characters except for backslash and braces
+    result <- str
+    result <- gsub("([#$%&_])", "\\\\\\1", result)  # Escape special characters
+    result <- gsub("~", "\\\\textasciitilde ", result)
+    result <- gsub("\\^", "\\\\textasciicircum ", result)
+    result <- gsub("<", "\\\\textless ", result)
+    result <- gsub(">", "\\\\textgreater ", result)
+    # Do not escape backslashes or braces to allow LaTeX commands
+    return(result)
+  }
+  
+  # Convert the table to a LaTeX-friendly format
+  latex_table <- xtable(result_df, align = align_spec)
+  
+  # Save the LaTeX table to a .tex file
+  print(latex_table, include.rownames = FALSE,
+        sanitize.text.function = sanitize, 
+        sanitize.colnames.function = identity,  # Use identity to keep LaTeX in column names
+        file = output_file_tex)
+}
+
+# Example usage:
+ M <- lmer(willingness ~ as.factor(Term) + (1 | Country), data = df_main)
+generate_model_and_latex_output(M, "willingness", "/.../overleaf/tabs/main.tex")
+```
