@@ -23,6 +23,7 @@ library(xtable) #for creating LaTeX compatible tables
 library(tidyverse)
 library(readxl)
 library(multcomp) # for Tukeys HSD
+library(BayesFactor) # for Bayes
 ```
 
 # create helper functions
@@ -194,9 +195,6 @@ generate_lm_model_and_latex_output <- function(model, response_var, output_file_
 ```{r helper: tukey}
 generate_tukey_latex_output <- function(tukey_test, output_file_tex) {
   
-  # Load necessary libraries
-  library(xtable)
-  
   # Summarize the Tukey test results
   summary_tukey <- summary(tukey_test)
   
@@ -252,6 +250,7 @@ generate_tukey_latex_output <- function(tukey_test, output_file_tex) {
 }
 ```
 
+# data cleaning
 ```{r load dataset, echo=FALSE}
 df <- read_excel("../data/data63.xlsx", na = "NA")
 ```
@@ -507,4 +506,47 @@ confint(M)
 print(paste("------------------ ANOVA with type III sum of squares:------------------"))
 anova_result <- car::Anova(M, type = "III")
 print(anova_result)
+```
+
+# Contrast Analyses 
+```{r contrasts}
+# Fit the linear mixed-effects model using lmer
+M <- lmer(willingness ~ Term + (1 | Country), data = df_main)
+
+# Define the contrasts
+contrasts <- rbind(
+  "Urgency vs. Neutral" = c(-1, -1, 1, 1, -1, -1, -1, 1, 1),
+  "Scientific vs. Colloquial" = c(1, 0, 0, 1, 1, -1, 1, 0, -1),
+  "Specific Threat vs. General Phenomenon" = c(-1, -1, 1, 1, -1, -1, 0, 1, 1)
+)
+
+# Ensure contrasts sum to zero
+print(rowSums(contrasts))
+
+# Perform the contrast analysis
+contrast_test <- glht(M, linfct = mcp(Term = contrasts))
+summary(contrast_test)
+```
+
+# Bayesian Analysis
+```{r bayes}
+df_main$Country <- as.factor(df_main$Country)
+df_main$Term <- as.factor(df_main$Term)
+
+anovaBF(formula = value ~ Term,
+        data = data.frame(df_main),
+        whichRandom = "Country")
+```
+
+# Experiment 1 Exploratory Analyses
+```{r load predictor data, echo=FALSE}
+predictordata <- read_excel("../data/PredictorData.xlsx", na = "NA")
+
+# Perform a left join by "Country" column
+df <- df_main %>%
+  left_join(predictordata, by = "Country")
+
+# Rename column "IndividualismHI" to "Ind_score"
+df <- df %>%
+  rename(Ind_score = IndividualismHI)
 ```
