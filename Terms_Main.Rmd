@@ -1,0 +1,267 @@
+---
+title: "Climate Terms Main Analyses"
+author: "Danielle Goldwert"
+date: "2024-10-24"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warnings=FALSE, width = 80)
+```
+
+```{r install libraries}
+library(readr)
+library(tidyr)
+library(lme4)
+library(lmerTest)
+library(car)
+library(dplyr)
+library(nlme)
+library(xtable) #for creating LaTeX compatible tables
+library(tidyverse)
+library(readxl)
+```
+
+```{r load dataset, echo=FALSE}
+df <- read_excel("data63.xlsx", na = "NA")
+```
+
+```{r cleaning}
+# Subset the control condition
+df_control <- df %>% filter(cond == 1)
+
+# Rename columns
+df_control <- df_control %>%
+  rename(
+    Climate_Change = probe_CC_1,
+    Global_Warming = probe_GW_1,
+    Global_Heating = probe_GH_1,
+    Climate_Crisis = probe_CCrisis_1,
+    Greenhouse_Effect = probe_GE_1,
+    Carbon_Emissions = probe_CE_1,
+    Greenhouse_Gasses = probe_CP_1,
+    Climate_Emergency = probe_CEmerg_1,
+    Carbon_Pollution = probe_CPoll_1
+  )
+
+# Define the list of columns to check for missing values
+columns_to_check <- c("Climate_Change", "Global_Warming", "Global_Heating", 
+                      "Climate_Crisis", "Greenhouse_Effect", "Carbon_Emissions", 
+                      "Greenhouse_Gasses", "Climate_Emergency", "Carbon_Pollution")
+
+# Remove rows where all specified columns have missing values and calculate rows removed
+initial_row_count <- nrow(df_control)
+df_control <- df_control %>% filter(!if_all(all_of(columns_to_check), is.na))
+rows_removed <- initial_row_count - nrow(df_control)
+
+# Print the number of rows removed
+print(paste("Number of rows removed:", rows_removed))
+```
+
+```{r create long dataframe}
+# Transform the dataframe from wide format to long format
+# Load dplyr
+library(dplyr)
+
+# Transform the dataframe to long format and select specified columns
+df_long <- df_control %>%
+  pivot_longer(
+    cols = c("Climate_Change", "Global_Warming", "Global_Heating", "Climate_Crisis", 
+             "Greenhouse_Effect", "Carbon_Emissions", "Greenhouse_Gasses", 
+             "Climate_Emergency", "Carbon_Pollution"),
+    names_to = "Term",       # Column name for variable names
+    values_to = "willingness" # Column name for the values
+  ) %>%
+  dplyr::select(ResponseId, Politics2_1, Politics2_9, Age, Country, BELIEFcc, Gender, Income, 
+                MacArthur_SES, Edu, willingness, Term) # Retain only specified columns
+
+# Display the transformed data
+print(df_long)
+```
+
+```{r}
+# Select specified columns and remove rows with any NA values
+# Explicitly use dplyr::select to avoid namespace issues
+df_main <- df_long %>%
+  dplyr::select(ResponseId, Country, Term, willingness) %>%
+  drop_na()
+
+# Display the resulting dataframe
+print(df_main)
+```
+
+```{r}
+# Replace "Climate_Change" with "AClimate_Change" in the Term column for df_long
+df_long <- df_long %>%
+  mutate(Term = ifelse(Term == "Climate_Change", "AClimate_Change", Term))
+
+# Replace "Climate_Change" with "AClimate_Change" in the Term column for df_main
+df_main <- df_main %>%
+  mutate(Term = ifelse(Term == "Climate_Change", "AClimate_Change", Term))
+```
+
+## descriptives
+```{r mean willingness}
+# Calculate sample sizes for each country
+sample_sizes <- df_main %>%
+  group_by(Country) %>%
+  summarise(sample_size = n())
+
+# Calculate total willingness to act for each country
+total_willingness <- df_main %>%
+  group_by(Country) %>%
+  summarise(total_willingness = sum(willingness, na.rm = TRUE))
+
+# Merge sample sizes and total willingness data frames
+country_stats <- sample_sizes %>%
+  inner_join(total_willingness, by = "Country")
+
+# Compute the weighted mean
+weighted_mean <- country_stats %>%
+  summarise(weighted_mean = mean(total_willingness / sample_size, na.rm = TRUE)) %>%
+  pull(weighted_mean)
+
+# Calculate the unweighted mean of willingness
+unweighted_mean <- mean(df_main$willingness, na.rm = TRUE)
+
+# print means
+print(paste("weighted mean:", weighted_mean))
+print(paste("unweighted mean:", unweighted_mean))
+```
+
+```{r make US and Anglo dfs}
+## USA only --------------------------------------
+df_main_US <- df_main[df_main$Country == "usa", ]
+print(paste("N in USA data:", (nrow(df_main_US))))
+
+## Anglosphere --------------------------------------
+# Define the list of majority English-speaking countries
+anglo <- c("usa", "uk", "canada", "australia", "newzealand")
+
+# Filter the data frame for these countries
+df_main_anglo <- df_main[df_main$Country %in% anglo, ]
+print(paste("N in Anglosphere data:", (nrow(df_main_anglo))))
+```
+
+# Main Manuscript Analysis
+```{r full dataset}
+M <- lmer(willingness ~ as.factor(Term) + (1 | Country), data = df_main)
+print(summary(M))
+confint(M)
+
+print(paste("------------------ ANOVA with type III sum of squares:------------------"))
+anova_result <- car::Anova(M, type = "III")
+print(anova_result)
+```
+
+```{r US}
+M <- lm(willingness ~ as.factor(Term), data = df_main_US)
+print(summary(M))
+confint(M)
+
+print(paste("------------------ ANOVA with type III sum of squares:------------------"))
+anova_result <- car::Anova(M, type = "III")
+print(anova_result)
+```
+
+```{r Anglo}
+M <- lmer(willingness ~ as.factor(Term) + (1 | Country), data = df_main_anglo)
+print(summary(M))
+confint(M)
+
+print(paste("------------------ ANOVA with type III sum of squares:------------------"))
+anova_result <- car::Anova(M, type = "III")
+print(anova_result)
+```
+
+# Interactions
+
+```{r clean long data}
+# Remove rows with missing data in df_long
+dfc <- na.omit(df_long)
+
+# Remove participants whose Gender is not 1 or 2
+dfc <- dfc[dfc$Gender %in% c(1, 2), ]
+
+# Create continuous ideology variable
+dfc$ide <- (dfc$Politics2_1 + dfc$Politics2_9) / 2
+
+# Create median split ideology variable
+new <- list()
+for (country in unique(dfc$Country)) {
+  sub <- dfc[dfc$Country == country, ] # Filter for rows in the current country
+  country_median <- median(sub$ide, na.rm = TRUE) # Calculate the median of ide within this country
+  sub$Ideology <- as.numeric(sub$ide > country_median) # Perform the median split and convert to numeric (0 or 1)
+  
+  # Ensure NaN ideology when Politics2_1 is NaN
+  sub$Ideology[is.na(sub$Politics2_1)] <- NA 
+  new[[country]] <- sub # Append the modified subset to the list
+}
+
+# Combine all subsets back into a single data frame
+dfc <- do.call(rbind, new)
+```
+
+```{r ideology (continuous)}
+#continuous ideology variable
+M <- lmer(willingness ~ as.factor(Term)*ide + (1 | Country), data = dfc)
+print(summary(M))
+confint(M)
+
+print(paste("------------------ ANOVA with type III sum of squares:------------------"))
+anova_result <- car::Anova(M, type = "III")
+print(anova_result)
+```
+
+```{r ideology (median split)}
+#median-split ideology variable
+M <- lmer(willingness ~ as.factor(Term)*Ideology + (1 | Country), data = dfc)
+print(summary(M))
+confint(M)
+
+print(paste("------------------ ANOVA with type III sum of squares:------------------"))
+anova_result <- car::Anova(M, type = "III")
+print(anova_result)
+```
+
+```{r SES}
+M <- lmer(willingness ~ as.factor(Term)*MacArthur_SES + (1 | Country), data = dfc)
+print(summary(M))
+confint(M)
+
+print(paste("------------------ ANOVA with type III sum of squares:------------------"))
+anova_result <- car::Anova(M, type = "III")
+print(anova_result)
+```
+
+```{r gender}
+M <- lmer(willingness ~ as.factor(Term)*Gender + (1 | Country), data = dfc)
+print(summary(M))
+confint(M)
+
+print(paste("------------------ ANOVA with type III sum of squares:------------------"))
+anova_result <- car::Anova(M, type = "III")
+print(anova_result)
+```
+
+```{r age}
+M <- lmer(willingness ~ as.factor(Term)*Age + (1 | Country), data = dfc)
+print(summary(M))
+confint(M)
+
+print(paste("------------------ ANOVA with type III sum of squares:------------------"))
+anova_result <- car::Anova(M, type = "III")
+print(anova_result)
+```
+
+```{r}
+M <- lmer(willingness ~ as.factor(Term)*Edu + (1 | Country), data = dfc)
+print(summary(M))
+confint(M)
+
+print(paste("------------------ ANOVA with type III sum of squares:------------------"))
+anova_result <- car::Anova(M, type = "III")
+print(anova_result)
+```
