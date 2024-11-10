@@ -228,9 +228,8 @@ columns_to_remove <- c(
 # Remove these columns
 df2 <- df2[, !(names(df2) %in% columns_to_remove)]
 
-# Replace "Climate_Change" with "aClimate_Change" and drop unused levels
-df2$Term <- factor(replace(as.character(df2$Term), df2$Term == "Climate_Change", "aClimate_Change"))
-df2$Term <- droplevels(df2$Term)
+# Replace "Climate_Change" with "aClimate_Change" in the factor column 
+df2$Term <- factor(ifelse(df2$Term == "ClimateChange", "aClimateChange", as.character(df2$Term)))
 ```
 
 # Descriptives
@@ -244,9 +243,6 @@ cat("Mean Willingness to Act in Study 2:", mean_willingness_to_act, "\n")
 
 # Main Manuscript Analysis
 ```{r full dataset}
-# Ensure 'Term' is a factor in the data
-df2$Term <- as.factor(df2$Term)
-
 M <- lm(Act ~ Term, data = df2)
 generate_lm_model_and_latex_output(M, "Act", "../overleaf/tabs2/main.tex")
 print(summary(M))
