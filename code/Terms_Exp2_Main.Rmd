@@ -174,12 +174,19 @@ generate_tukey_latex_output <- function(tukey_test, output_file_tex) {
 
 # data cleaning
 ```{r load dataset, echo=FALSE}
-df2 <- read_excel("../data/TermsFollowup.xlsx", na = "NA")
+#df2 <- read_excel("../data/TermsFollowup.xlsx", na = "NA")
+library(openxlsx)
+df2 <- read.xlsx("../data/TermsFollowup.xlsx", na.strings = "NA")
 ```
 
 ```{r cleaning}
 # Keep only the rows where 'attentioncheck' equals 2
 df2 <- subset(df2, attentioncheck == 2)
+
+df2 <- df2 %>% rename(Term = C)
+
+# Ensure 'Term' is a factor in the data
+df2$Term <- as.factor(df2$Term)
 
 # Define the columns to check for missing values
 act_cols <- grep("^Act_1", names(df2), value = TRUE)
@@ -221,13 +228,8 @@ columns_to_remove <- c(
 # Remove these columns
 df2 <- df2[, !(names(df2) %in% columns_to_remove)]
 
-
-# Ensure 'C' is a factor in the data
-df2$C <- as.factor(df2$C)
-
-# Replace "Climate_Change" with "aClimate_Change" in the Term column for df_long
-df2 <- df2 %>%
-  mutate(C = ifelse(C == "Climate_Change", "aClimate_Change", C))
+# Replace "Climate_Change" with "aClimate_Change" in the factor column Term
+df2$Term <- factor(replace(as.character(df2$Term), df2$Term == "Climate_Change", "aClimate_Change"))
 ```
 
 # Descriptives
@@ -241,7 +243,10 @@ cat("Mean Willingness to Act in Study 2:", mean_willingness_to_act, "\n")
 
 # Main Manuscript Analysis
 ```{r full dataset}
-M <- lm(Act ~ C, data = df2)
+# Ensure 'Term' is a factor in the data
+df2$Term <- as.factor(df2$Term)
+
+M <- lm(Act ~ Term, data = df2)
 generate_lm_model_and_latex_output(M, "Act", "../overleaf/tabs2/main.tex")
 print(summary(M))
 confint(M)
@@ -250,22 +255,22 @@ print(paste("------------------ ANOVA with type III sum of squares:-------------
 anova_result <- car::Anova(M, type = "III")
 print(anova_result)
 
-tukey_test <- glht(M, linfct = mcp(C = "Tukey"))
+tukey_test <- glht(M, linfct = mcp(Term = "Tukey"))
 generate_tukey_latex_output(tukey_test, "../overleaf/tabs2/tukey_main.tex")
 ```
 
 # Bayesian Analysis
 ```{r bayes}
-df2$C <- as.factor(df2$C)
+df2$Term <- as.factor(df2$Term)
 
-anovaBF(formula = Act ~ C,
+anovaBF(formula = Act ~ Term,
         data = data.frame(df2))
 ```
 
 # Contrast Analyses 
 ```{r contrasts}
 # Fit the model
-M <- lm(Act ~ C, data = df2)
+M <- lm(Act ~ Term, data = df2)
 
 # Define the contrasts
 contrasts <- rbind(
@@ -278,7 +283,7 @@ contrasts <- rbind(
 print(rowSums(contrasts))
 
 # Perform the contrast analysis
-contrast_test <- glht(M, linfct = mcp(C = contrasts))
+contrast_test <- glht(M, linfct = mcp(Term = contrasts))
 summary(contrast_test)
 ```
 
@@ -303,13 +308,13 @@ df2c <- df2c %>%
   rename(
     Ideology = ide,
     SES = MacArthur_SES,
-    Education = `Education 2`
+    Education = `Education.2`
   )
 ```
 
 ```{r ideology (continuous)}
 #continuous ideology variable
-M <- lm(Act ~ C*Ideology, data = df2c)
+M <- lm(Act ~ Term*Ideology, data = df2c)
 generate_lm_model_and_latex_output(M, "Act", "../overleaf/tabs2/main_ide_cont.tex")
 print(summary(M))
 confint(M)
@@ -320,7 +325,7 @@ print(anova_result)
 ```
 
 ```{r SES}
-M <- lm(Act ~ C*SES, data = df2c)
+M <- lm(Act ~ Term*SES, data = df2c)
 generate_lm_model_and_latex_output(M, "Act", "../overleaf/tabs2/main_SES.tex")
 print(summary(M))
 confint(M)
@@ -331,7 +336,7 @@ print(anova_result)
 ```
 
 ```{r gender}
-M <- lm(Act ~ C*Gender, data = df2c)
+M <- lm(Act ~ Term*Gender, data = df2c)
 generate_lm_model_and_latex_output(M, "Act", "../overleaf/tabs2/main_gender.tex")
 print(summary(M))
 confint(M)
@@ -342,7 +347,7 @@ print(anova_result)
 ```
 
 ```{r age}
-M <- lm(Act ~ C*Age, data = df2c)
+M <- lm(Act ~ Term*Age, data = df2c)
 generate_lm_model_and_latex_output(M, "Act", "../overleaf/tabs2/main_age.tex")
 print(summary(M))
 confint(M)
@@ -353,7 +358,7 @@ print(anova_result)
 ```
 
 ```{r edu}
-M <- lm(Act ~ C*Education, data = df2c)
+M <- lm(Act ~ Term*Education, data = df2c)
 generate_lm_model_and_latex_output(M, "Act", "../overleaf/tabs2/main_edu.tex")
 print(summary(M))
 confint(M)
