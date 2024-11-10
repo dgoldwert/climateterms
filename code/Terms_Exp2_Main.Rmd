@@ -228,8 +228,9 @@ columns_to_remove <- c(
 # Remove these columns
 df2 <- df2[, !(names(df2) %in% columns_to_remove)]
 
-# Replace "Climate_Change" with "aClimate_Change" in the factor column Term
+# Replace "Climate_Change" with "aClimate_Change" and drop unused levels
 df2$Term <- factor(replace(as.character(df2$Term), df2$Term == "Climate_Change", "aClimate_Change"))
+df2$Term <- droplevels(df2$Term)
 ```
 
 # Descriptives
