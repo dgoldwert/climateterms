@@ -340,10 +340,25 @@ df_long1 <- df_control %>%
 dfc1 <- df_long1 %>%
   drop_na() %>%
   filter(Gender == 1 | Gender == 2)
+
+# Rename columns
+dfc1 <- dfc1 %>%
+  rename(
+    SciComp = Trust_sci1_1,
+    TrustSci = Trust_sci2_1,
+    TrustGov = Trust_gov_1,
+    HumanWelfare = ID_hum_1,
+    GlobalCitizen = ID_GC_1,
+    EnvIdentity = Enviro_ID_avg,
+    EnvMotiv = Enviro_motiv_avg,
+    PluralIgnorance = PlurIgnoranceItem_1,
+    PerceivedCons = PerceivedSciConsensu_1,
+    Individualism = Ind_score
+  )
 ```
 
 ```{r trustsci1}
-M <- lmer(willingness ~ Term*Trust_sci1_1 + (1 | Country), data = dfc1)
+M <- lmer(willingness ~ Term*SciComp + (1 | Country), data = dfc1)
 generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/exp_trustsci1.tex")
 print(summary(M))
 confint(M)
@@ -354,7 +369,7 @@ print(anova_result)
 ```
 
 ```{r trustsci2}
-M <- lmer(willingness ~ Term*Trust_sci2_1 + (1 | Country), data = dfc1)
+M <- lmer(willingness ~ Term*TrustSci + (1 | Country), data = dfc1)
 generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/exp_trustsci2.tex")
 print(summary(M))
 confint(M)
@@ -365,7 +380,7 @@ print(anova_result)
 ```
 
 ```{r trustgov}
-M <- lmer(willingness ~ Term*Trust_gov_1 + (1 | Country), data = dfc1)
+M <- lmer(willingness ~ Term*TrustGov + (1 | Country), data = dfc1)
 generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/exp_trustgov.tex")
 print(summary(M))
 confint(M)
@@ -376,7 +391,7 @@ print(anova_result)
 ```
 
 ```{r care human welfare}
-M <- lmer(willingness ~ Term*ID_hum_1 + (1 | Country), data = dfc1)
+M <- lmer(willingness ~ Term*HumanWelfare + (1 | Country), data = dfc1)
 generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/exp_carehumwel.tex")
 print(summary(M))
 confint(M)
@@ -387,7 +402,7 @@ print(anova_result)
 ```
 
 ```{r global citizen}
-M <- lmer(willingness ~ Term*ID_GC_1 + (1 | Country), data = dfc1)
+M <- lmer(willingness ~ Term*GlobalCitizen + (1 | Country), data = dfc1)
 generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/exp_globalcitizen.tex")
 print(summary(M))
 confint(M)
@@ -398,7 +413,7 @@ print(anova_result)
 ```
 
 ```{r enviro ID}
-M <- lmer(willingness ~ Term*Enviro_ID_avg + (1 | Country), data = dfc1)
+M <- lmer(willingness ~ Term*EnvIdentity + (1 | Country), data = dfc1)
 generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/exp_envirid.tex")
 print(summary(M))
 confint(M)
@@ -409,7 +424,7 @@ print(anova_result)
 ```
 
 ```{r enviro motiv}
-M <- lmer(willingness ~ Term*Enviro_motiv_avg + (1 | Country), data = dfc1)
+M <- lmer(willingness ~ Term*EnvMotiv + (1 | Country), data = dfc1)
 generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/exp_envirmot.tex")
 print(summary(M))
 confint(M)
@@ -420,7 +435,7 @@ print(anova_result)
 ```
 
 ```{r pluralistic ignorance}
-M <- lmer(willingness ~ Term*PlurIgnoranceItem_1 + (1 | Country), data = dfc1)
+M <- lmer(willingness ~ Term*PluralIgnorance + (1 | Country), data = dfc1)
 generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/exp_plurig.tex")
 print(summary(M))
 confint(M)
@@ -431,7 +446,7 @@ print(anova_result)
 ```
 
 ```{r perceived sci consensus}
-M <- lmer(willingness ~ Term*PerceivedSciConsensu_1 + (1 | Country), data = dfc1)
+M <- lmer(willingness ~ Term*PerceivedCons + (1 | Country), data = dfc1)
 generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/exp_scicons.tex")
 print(summary(M))
 confint(M)
@@ -442,7 +457,7 @@ print(anova_result)
 ```
 
 ```{r individualism}
-M <- lmer(willingness ~ Term*Ind_score + (1 | Country), data = dfc1)
+M <- lmer(willingness ~ Term*Individualism + (1 | Country), data = dfc1)
 generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/exp_ind.tex")
 print(summary(M))
 confint(M)
