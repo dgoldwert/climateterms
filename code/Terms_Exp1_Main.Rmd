@@ -1,5 +1,5 @@
 ---
-title: "Climate Terms Main Analyses"
+title: "Climate Terms Experiment 1 Main Analyses"
 author: "Danielle Goldwert"
 date: "2024-10-24"
 output:
@@ -234,11 +234,11 @@ print(df_main)
 ```{r}
 # Replace "Climate_Change" with "AClimate_Change" in the Term column for df_long
 df_long <- df_long %>%
-  mutate(Term = ifelse(Term == "Climate_Change", "AClimate_Change", Term))
+  mutate(Term = ifelse(Term == "Climate_Change", "aClimate_Change", Term))
 
 # Replace "Climate_Change" with "AClimate_Change" in the Term column for df_main
 df_main <- df_main %>%
-  mutate(Term = ifelse(Term == "Climate_Change", "AClimate_Change", Term))
+  mutate(Term = ifelse(Term == "Climate_Change", "aClimate_Change", Term))
 
 # Ensure 'Term' is a factor in the data
 df_main$Term <- as.factor(df_main$Term)
@@ -309,14 +309,14 @@ dfc <- na.omit(df_long)
 dfc <- dfc[dfc$Gender %in% c(1, 2), ]
 
 # Create continuous ideology variable
-dfc$ide <- (dfc$Politics2_1 + dfc$Politics2_9) / 2
+dfc$Ideology <- (dfc$Politics2_1 + dfc$Politics2_9) / 2
 
 # Create median split ideology variable
 new <- list()
 for (country in unique(dfc$Country)) {
   sub <- dfc[dfc$Country == country, ] # Filter for rows in the current country
-  country_median <- median(sub$ide, na.rm = TRUE) # Calculate the median of ide within this country
-  sub$Ideology <- as.numeric(sub$ide > country_median) # Perform the median split and convert to numeric (0 or 1)
+  country_median <- median(sub$Ideology, na.rm = TRUE) # Calculate the median of ide within this country
+  sub$Ideology_ms <- as.numeric(sub$Ideology > country_median) # Perform the median split and convert to numeric (0 or 1)
   
   # Ensure NaN ideology when Politics2_1 is NaN
   sub$Ideology[is.na(sub$Politics2_1)] <- NA 
@@ -325,11 +325,18 @@ for (country in unique(dfc$Country)) {
 
 # Combine all subsets back into a single data frame
 dfc <- do.call(rbind, new)
+
+# Rename columns
+dfc <- dfc %>%
+  rename(
+    SES = MacArthur_SES,
+    Education = `Edu`
+  )
 ```
 
 ```{r ideology (continuous)}
 #continuous ideology variable
-M <- lmer(willingness ~ Term*ide + (1 | Country), data = dfc)
+M <- lmer(willingness ~ Term*Ideology + (1 | Country), data = dfc)
 generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/main_ide_cont.tex")
 print(summary(M))
 confint(M)
@@ -341,7 +348,7 @@ print(anova_result)
 
 ```{r ideology (median split)}
 #median-split ideology variable
-M <- lmer(willingness ~ Term*Ideology + (1 | Country), data = dfc)
+M <- lmer(willingness ~ Term*Ideology_ms + (1 | Country), data = dfc)
 generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/main_ide_ms.tex")
 print(summary(M))
 confint(M)
@@ -352,7 +359,7 @@ print(anova_result)
 ```
 
 ```{r SES}
-M <- lmer(willingness ~ Term*MacArthur_SES + (1 | Country), data = dfc)
+M <- lmer(willingness ~ Term*SES + (1 | Country), data = dfc)
 generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/main_SES.tex")
 print(summary(M))
 confint(M)
@@ -385,7 +392,7 @@ print(anova_result)
 ```
 
 ```{r edu}
-M <- lmer(willingness ~ Term*Edu + (1 | Country), data = dfc)
+M <- lmer(willingness ~ Term*Education + (1 | Country), data = dfc)
 generate_model_and_latex_output(M, "willingness", "../overleaf/tabs/main_edu.tex")
 print(summary(M))
 confint(M)

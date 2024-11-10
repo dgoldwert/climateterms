@@ -1,5 +1,5 @@
 ---
-title: "Climate Terms Experiment 1 US-only Analyses"
+title: "Climate Terms Experiment 2 Main Analyses"
 author: "Danielle Goldwert"
 date: "2024-10-24"
 output:
@@ -42,6 +42,9 @@ generate_lm_model_and_latex_output <- function(model, response_var, output_file_
   
   # Get the confidence intervals
   conf_int <- confint(model, level = 0.95)
+  
+  # Ensure rows in conf_int match rows in fixed_effects
+  conf_int <- conf_int[rownames(fixed_effects), ]
   
   # Get the fixed effects names
   fe_names <- rownames(fixed_effects)
@@ -171,128 +174,143 @@ generate_tukey_latex_output <- function(tukey_test, output_file_tex) {
 
 # data cleaning
 ```{r load dataset, echo=FALSE}
-df <- read_excel("../data/data63.xlsx", na = "NA")
+df2 <- read_excel("../data/TermsFollowup.xlsx", na = "NA")
 ```
 
 ```{r cleaning}
-# Subset the control condition
-df_control <- df %>% filter(cond == 1)
+# Keep only the rows where 'attentioncheck' equals 2
+df2 <- subset(df2, attentioncheck == 2)
 
-# Rename columns
-df_control <- df_control %>%
-  rename(
-    Climate_Change = probe_CC_1,
-    Global_Warming = probe_GW_1,
-    Global_Heating = probe_GH_1,
-    Climate_Crisis = probe_CCrisis_1,
-    Greenhouse_Effect = probe_GE_1,
-    Carbon_Emissions = probe_CE_1,
-    Greenhouse_Gasses = probe_CP_1,
-    Climate_Emergency = probe_CEmerg_1,
-    Carbon_Pollution = probe_CPoll_1
-  )
+# Define the columns to check for missing values
+act_cols <- grep("^Act_1", names(df2), value = TRUE)
+adv_cols <- grep("^Advocacy_1", names(df2), value = TRUE)
+policy_cols <- grep("^Policy_1", names(df2), value = TRUE)
+concern_cols <- grep("^Concern_1", names(df2), value = TRUE)
 
-# Define the list of columns to check for missing values
-columns_to_check <- c("Climate_Change", "Global_Warming", "Global_Heating", 
-                      "Climate_Crisis", "Greenhouse_Effect", "Carbon_Emissions", 
-                      "Greenhouse_Gasses", "Climate_Emergency", "Carbon_Pollution")
+# Remove rows where all specified columns have missing values
+df2 <- df2[!apply(is.na(df2[, act_cols]), 1, all), ]
+df2 <- df2[!apply(is.na(df2[, policy_cols]), 1, all), ]
+df2 <- df2[!apply(is.na(df2[, concern_cols]), 1, all), ]
 
-# Remove rows where all specified columns have missing values and calculate rows removed
-initial_row_count <- nrow(df_control)
-df_control <- df_control %>% filter(!if_all(all_of(columns_to_check), is.na))
-rows_removed <- initial_row_count - nrow(df_control)
+# Sum columns that start with 'Act'
+act_columns <- grep("^Act", names(df2), value = TRUE)
+df2[, act_columns] <- lapply(df2[, act_columns], as.numeric)
+df2$Act <- rowSums(df2[, act_columns], na.rm = TRUE)
 
-# Print the number of rows removed
-print(paste("Number of rows removed:", rows_removed))
+# Sum columns that start with 'Advocacy'
+adv_columns <- grep("^Advocacy", names(df2), value = TRUE)
+df2[, adv_columns] <- lapply(df2[, adv_columns], as.numeric)
+df2$Advocacy <- rowSums(df2[, adv_columns], na.rm = TRUE)
+
+# Sum columns that start with 'Policy'
+policy_columns <- grep("^Policy", names(df2), value = TRUE)
+df2[, policy_columns] <- lapply(df2[, policy_columns], as.numeric)
+df2$Policy <- rowSums(df2[, policy_columns], na.rm = TRUE)
+
+# Sum columns that start with 'Concern'
+concern_columns <- grep("^Concern", names(df2), value = TRUE)
+df2[, concern_columns] <- lapply(df2[, concern_columns], as.numeric)
+df2$Concern <- rowSums(df2[, concern_columns], na.rm = TRUE)
+
+# List of columns to be removed
+columns_to_remove <- c(
+  act_columns, adv_columns, policy_columns, concern_columns,
+  "aid", "attentioncheck", "Gender_4_TEXT", "Comments_pilot", "PerceivedSciConsensu_1"
+)
+
+# Remove these columns
+df2 <- df2[, !(names(df2) %in% columns_to_remove)]
+
+
+# Ensure 'C' is a factor in the data
+df2$C <- as.factor(df2$C)
+
+# Replace "Climate_Change" with "aClimate_Change" in the Term column for df_long
+df2 <- df2 %>%
+  mutate(C = ifelse(C == "Climate_Change", "aClimate_Change", C))
 ```
 
-```{r create long dataframe}
-# Transform the dataframe to long format and select specified columns
-df_long <- df_control %>%
-  pivot_longer(
-    cols = c("Climate_Change", "Global_Warming", "Global_Heating", "Climate_Crisis", 
-             "Greenhouse_Effect", "Carbon_Emissions", "Greenhouse_Gasses", 
-             "Climate_Emergency", "Carbon_Pollution"),
-    names_to = "Term",       # Column name for variable names
-    values_to = "willingness" # Column name for the values
-  ) %>%
-  dplyr::select(ResponseId, Politics2_1, Politics2_9, Age, Country, BELIEFcc, Gender, Income, 
-                MacArthur_SES, Edu, willingness, Term) # Retain only specified columns
-
-# Display the transformed data
-print(df_long)
-```
-
+# Descriptives
 ```{r}
-# Select specified columns and remove rows with any NA values
-# Explicitly use dplyr::select to avoid namespace issues
-df_main <- df_long %>%
-  dplyr::select(ResponseId, Country, Term, willingness) %>%
-  drop_na()
+# Calculate overall mean willingness to act
+mean_willingness_to_act <- mean(df2$Act, na.rm = TRUE)
 
-# Display the resulting dataframe
-print(df_main)
+# Print the result
+cat("Mean Willingness to Act in Study 2:", mean_willingness_to_act, "\n")
 ```
 
-```{r}
-# Replace "Climate_Change" with "AClimate_Change" in the Term column for df_long
-df_long <- df_long %>%
-  mutate(Term = ifelse(Term == "Climate_Change", "aClimate_Change", Term))
-
-# Replace "Climate_Change" with "AClimate_Change" in the Term column for df_main
-df_main <- df_main %>%
-  mutate(Term = ifelse(Term == "Climate_Change", "aClimate_Change", Term))
-
-# Ensure 'Term' is a factor in the data
-df_main$Term <- as.factor(df_main$Term)
-df_long$Term <- as.factor(df_long$Term)
-```
-
-```{r make US df}
-df_main_US <- df_main[df_main$Country == "usa", ]
-print(paste("N in USA data:", (nrow(df_main_US))))
-```
-
-# US Analyses
-```{r main}
-M <- lm(willingness ~ Term, data = df_main_US)
-generate_lm_model_and_latex_output(M, "willingness", "../overleaf/tabs_US/main.tex")
+# Main Manuscript Analysis
+```{r full dataset}
+M <- lm(Act ~ C, data = df2)
+generate_lm_model_and_latex_output(M, "Act", "../overleaf/tabs2/main.tex")
 print(summary(M))
 confint(M)
 
 print(paste("------------------ ANOVA with type III sum of squares:------------------"))
 anova_result <- car::Anova(M, type = "III")
 print(anova_result)
+
+tukey_test <- glht(M, linfct = mcp(C = "Tukey"))
+generate_tukey_latex_output(tukey_test, "../overleaf/tabs2/tukey_main.tex")
+```
+
+# Bayesian Analysis
+```{r bayes}
+df2$C <- as.factor(df2$C)
+
+anovaBF(formula = Act ~ C,
+        data = data.frame(df2))
+```
+
+# Contrast Analyses 
+```{r contrasts}
+# Fit the model
+M <- lm(Act ~ C, data = df2)
+
+# Define the contrasts
+contrasts <- rbind(
+  "Urgency vs. Neutral" = c(-1, 1, 1, -1, 1, -1, -1, 1, -1, -1),
+  "Scientific vs. Colloquial" = c(1, 0, 0, 1, -1, -1, -1, 0, 1, 1),
+  "Specific Threat vs. General Phenomenon" = c(-1, 1, 1, -1, 1, -1, -1, 1, -1, 0)
+)
+
+# Ensure contrasts sum to zero
+print(rowSums(contrasts))
+
+# Perform the contrast analysis
+contrast_test <- glht(M, linfct = mcp(C = contrasts))
+summary(contrast_test)
 ```
 
 # Interactions
-```{r clean long data}
-# Filter for specified countries
-df_long_US <- df_long %>%
-  filter(Country %in% c("usa"))
-
-# Remove rows with missing data
-dfc_US <- df_long_US %>%
+```{r clean data}
+# Remove rows with any missing data
+df2c <- df2 %>%
   drop_na()
 
-# Remove participants whose Gender is not 1 or 2
-dfc_US <- dfc_US[dfc_US$Gender %in% c(1, 2), ]
+df2c <- df2c %>%
+  mutate(
+    Politics2_1 = as.numeric(as.character(Politics2_1)),
+    Politics2_9 = as.numeric(as.character(Politics2_9)),
+    ide = (Politics2_1 + Politics2_9) / 2
+  )
 
-# Create continuous ideology variable
-dfc_US$Ideology <- (dfc_US$Politics2_1 + dfc_US$Politics2_9) / 2
+# Remove participants whose Gender is not 1 or 2
+df2c <- df2c[df2c$Gender %in% c(1, 2), ]
 
 # Rename columns
-dfc_US <- dfc_US %>%
+df2c <- df2c %>%
   rename(
+    Ideology = ide,
     SES = MacArthur_SES,
-    Education = `Edu`
+    Education = `Education 2`
   )
 ```
 
 ```{r ideology (continuous)}
 #continuous ideology variable
-M <- lm(willingness ~ Term*Ideology, data = dfc_US)
-generate_lm_model_and_latex_output(M, "willingness", "../overleaf/tabs_US/main_ide_cont.tex")
+M <- lm(Act ~ C*Ideology, data = df2c)
+generate_lm_model_and_latex_output(M, "Act", "../overleaf/tabs2/main_ide_cont.tex")
 print(summary(M))
 confint(M)
 
@@ -302,8 +320,8 @@ print(anova_result)
 ```
 
 ```{r SES}
-M <- lm(willingness ~ Term*SES, data = dfc_US)
-generate_lm_model_and_latex_output(M, "willingness", "../overleaf/tabs_US/main_SES.tex")
+M <- lm(Act ~ C*SES, data = df2c)
+generate_lm_model_and_latex_output(M, "Act", "../overleaf/tabs2/main_SES.tex")
 print(summary(M))
 confint(M)
 
@@ -313,8 +331,8 @@ print(anova_result)
 ```
 
 ```{r gender}
-M <- lm(willingness ~ Term*Gender, data = dfc_US)
-generate_lm_model_and_latex_output(M, "willingness", "../overleaf/tabs_US/main_gender.tex")
+M <- lm(Act ~ C*Gender, data = df2c)
+generate_lm_model_and_latex_output(M, "Act", "../overleaf/tabs2/main_gender.tex")
 print(summary(M))
 confint(M)
 
@@ -324,8 +342,8 @@ print(anova_result)
 ```
 
 ```{r age}
-M <- lm(willingness ~ Term*Age, data = dfc_US)
-generate_lm_model_and_latex_output(M, "willingness", "../overleaf/tabs_US/main_age.tex")
+M <- lm(Act ~ C*Age, data = df2c)
+generate_lm_model_and_latex_output(M, "Act", "../overleaf/tabs2/main_age.tex")
 print(summary(M))
 confint(M)
 
@@ -335,8 +353,8 @@ print(anova_result)
 ```
 
 ```{r edu}
-M <- lm(willingness ~ Term*Education, data = dfc_US)
-generate_lm_model_and_latex_output(M, "willingness", "../overleaf/tabs_US/main_edu.tex")
+M <- lm(Act ~ C*Education, data = df2c)
+generate_lm_model_and_latex_output(M, "Act", "../overleaf/tabs2/main_edu.tex")
 print(summary(M))
 confint(M)
 
@@ -344,3 +362,5 @@ print(paste("------------------ ANOVA with type III sum of squares:-------------
 anova_result <- car::Anova(M, type = "III")
 print(anova_result)
 ```
+
+

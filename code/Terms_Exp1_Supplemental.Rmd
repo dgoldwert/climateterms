@@ -331,7 +331,7 @@ df_long1 <- df_control %>%
     values_to = "willingness"
   ) %>%
   # Replace specific values in the 'Term' column
-  mutate(Term = ifelse(Term == "Climate_Change", "AClimate_Change", Term)) %>%
+  mutate(Term = ifelse(Term == "Climate_Change", "aClimate_Change", Term)) %>%
   dplyr::select(ResponseId, Country, Gender, Trust_sci1_1, Trust_sci2_1, Trust_gov_1, ID_hum_1, ID_GC_1, 
          Enviro_ID_avg, Enviro_motiv_avg, PlurIgnoranceItem_1, PerceivedSciConsensu_1, Ind_score, 
          willingness, Term)

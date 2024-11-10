@@ -1,5 +1,5 @@
 ---
-title: "Climate Terms Anglosphere-only Analyses"
+title: "Climate Terms Experiment 1 Anglosphere-only Analyses"
 author: "Danielle Goldwert"
 date: "2024-10-24"
 output:
@@ -234,11 +234,11 @@ print(df_main)
 ```{r}
 # Replace "Climate_Change" with "AClimate_Change" in the Term column for df_long
 df_long <- df_long %>%
-  mutate(Term = ifelse(Term == "Climate_Change", "AClimate_Change", Term))
+  mutate(Term = ifelse(Term == "Climate_Change", "aClimate_Change", Term))
 
 # Replace "Climate_Change" with "AClimate_Change" in the Term column for df_main
 df_main <- df_main %>%
-  mutate(Term = ifelse(Term == "Climate_Change", "AClimate_Change", Term))
+  mutate(Term = ifelse(Term == "Climate_Change", "aClimate_Change", Term))
 
 # Ensure 'Term' is a factor in the data
 df_main$Term <- as.factor(df_main$Term)
@@ -283,12 +283,19 @@ dfc_anglo <- df_long_anglo %>%
 dfc_anglo <- dfc_anglo[dfc_anglo$Gender %in% c(1, 2), ]
 
 # Create continuous ideology variable
-dfc_anglo$ide <- (dfc_anglo$Politics2_1 + dfc_anglo$Politics2_9) / 2
+dfc_anglo$Ideology <- (dfc_anglo$Politics2_1 + dfc_anglo$Politics2_9) / 2
+
+# Rename columns
+dfc_anglo <- dfc_anglo %>%
+  rename(
+    SES = MacArthur_SES,
+    Education = `Edu`
+  )
 ```
 
 ```{r ideology (continuous)}
 #continuous ideology variable
-M <- lmer(willingness ~ Term*ide + (1 | Country), data = dfc)
+M <- lmer(willingness ~ Term*Ideology + (1 | Country), data = dfc)
 generate_model_and_latex_output(M, "willingness", "../overleaf/tabs_Anglo/main_ide_cont.tex")
 print(summary(M))
 confint(M)
@@ -299,7 +306,7 @@ print(anova_result)
 ```
 
 ```{r SES}
-M <- lmer(willingness ~ Term*MacArthur_SES + (1 | Country), data = dfc_anglo)
+M <- lmer(willingness ~ Term*SES + (1 | Country), data = dfc_anglo)
 generate_model_and_latex_output(M, "willingness", "../overleaf/tabs_Anglo/main_SES.tex")
 print(summary(M))
 confint(M)
@@ -332,7 +339,7 @@ print(anova_result)
 ```
 
 ```{r edu}
-M <- lmer(willingness ~ Term*Edu + (1 | Country), data = dfc_anglo)
+M <- lmer(willingness ~ Term*Education + (1 | Country), data = dfc_anglo)
 generate_model_and_latex_output(M, "willingness", "../overleaf/tabs_Anglo/main_edu.tex")
 print(summary(M))
 confint(M)
