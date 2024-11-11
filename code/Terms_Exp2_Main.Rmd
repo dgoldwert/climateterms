@@ -381,5 +381,36 @@ print(paste("------------------ ANOVA with type III sum of squares:-------------
 anova_result <- car::Anova(M, type = "III")
 print(anova_result)
 ```
+## Additional Outcome Variables
+```{r Advocacy}
+M <- lm(Advocacy ~ Term, data = df2)
+generate_lm_model_and_latex_output(M, "Act", "../overleaf/tabs2/advocacy.tex")
+print(summary(M))
+confint(M)
 
+print(paste("------------------ ANOVA with type III sum of squares:------------------"))
+anova_result <- car::Anova(M, type = "III")
+print(anova_result)
+```
 
+```{r Policy}
+M <- lm(Policy ~ Term, data = df2)
+generate_lm_model_and_latex_output(M, "Act", "../overleaf/tabs2/policy")
+print(summary(M))
+confint(M)
+
+print(paste("------------------ ANOVA with type III sum of squares:------------------"))
+anova_result <- car::Anova(M, type = "III")
+print(anova_result)
+```
+
+```{r Concern}
+M <- lm(Concern ~ Term, data = df2)
+generate_lm_model_and_latex_output(M, "Act", "../overleaf/tabs2/concern")
+print(summary(M))
+confint(M)
+
+print(paste("------------------ ANOVA with type III sum of squares:------------------"))
+anova_result <- car::Anova(M, type = "III")
+print(anova_result)
+```

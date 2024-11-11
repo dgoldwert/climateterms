@@ -1,0 +1,21 @@
+% latex table generated in R 4.4.1 by xtable 1.8-4 package
+% Sun Nov 10 22:21:06 2024
+\begin{table}[ht]
+\centering
+\begin{tabular}{lrrrrrl}
+  \hline
+Condition & Estimate & \textit{SE} & \textit{df} & \textit{t} & \textit{p} & 95\% CI [LL, UL] \\ 
+  \hline
+(Intercept) & 53.59 & 2.65 & 1543 & 20.19 & \textbf{\textless  .001} & [48.38, 58.80] \\ 
+  CarbonEmissions & 4.01 & 3.76 & 1543 & 1.07 & .286 & [-3.37, 11.39] \\ 
+  CarbonPollution & 4.17 & 3.71 & 1543 & 1.12 & .262 & [-3.12, 11.45] \\ 
+  ClimateCrisis & 0.01 & 3.77 & 1543 & 0.00 & .998 & [-7.38, 7.40] \\ 
+  ClimateEmergency & 1.13 & 3.77 & 1543 & 0.30 & .764 & [-6.25, 8.52] \\ 
+  GlobalBoiling & 6.15 & 3.75 & 1543 & 1.64 & .101 & [-1.20, 13.50] \\ 
+  GlobalHeating & 2.31 & 3.76 & 1543 & 0.61 & .539 & [-5.06, 9.69] \\ 
+  GlobalWarming & 5.27 & 3.72 & 1543 & 1.42 & .157 & [-2.03, 12.58] \\ 
+  GreenhouseEffect & 1.25 & 3.72 & 1543 & 0.34 & .738 & [-6.05, 8.54] \\ 
+  GreenhouseGasses & 0.58 & 3.75 & 1543 & 0.16 & .876 & [-6.78, 7.95] \\ 
+   \hline
+\end{tabular}
+\end{table}
