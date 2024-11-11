@@ -120,23 +120,35 @@ generate_tukey_latex_output <- function(tukey_test, output_file_tex) {
   # Summarize the Tukey test results
   summary_tukey <- summary(tukey_test)
   
+  # Get confidence intervals
+  confint_tukey <- confint(tukey_test)
+  
   # Extract estimates, standard errors, z-values, and p-values
   estimates <- summary_tukey$test$coefficients
   std_errors <- summary_tukey$test$sigma
   z_values <- summary_tukey$test$tstat
   p_values <- summary_tukey$test$pvalues
   
+  # Extract confidence intervals
+  ci_lower <- confint_tukey$confint[, "lwr"]
+  ci_upper <- confint_tukey$confint[, "upr"]
+  
   # Extract the comparison labels
   comparisons <- names(estimates)
   
-  # Create a data frame for results
+  # Format confidence intervals as "[LL, UL]"
+  ci_formatted <- paste0("[", round(ci_lower, 2), ", ", round(ci_upper, 2), "]")
+  
+  # Create a data frame for results with a simplified column name
   tukey_df <- data.frame(
     Comparison = comparisons,
     Estimate = round(estimates, 2),
-    "Std. Error" = round(std_errors, 2),
-    "z value" = round(z_values, 2),
-    "p" = p_values,
-    stringsAsFactors = FALSE
+    `\\textit{SE}` = round(std_errors, 2),
+    `\\textit{z}` = round(z_values, 2),
+    p = p_values,  # We'll format p-values later
+    `95\\% CI [LL, UL]` = ci_formatted,  # Simplified column name
+    stringsAsFactors = FALSE,
+    check.names = FALSE  # Prevent automatic renaming of columns
   )
   
   # Process p-values for formatting
@@ -146,7 +158,7 @@ generate_tukey_latex_output <- function(tukey_test, output_file_tex) {
   tukey_df$p <- ifelse(p_values < 0.006, paste0("\\textbf{", tukey_df$p, "}"), tukey_df$p)
   
   # Set alignment for columns (length should be ncol + 1)
-  align_spec <- c("l", "l", "r", "r", "r", "r")  # Adjusted length for table with 5 columns
+  align_spec <- c("l", "l", "r", "r", "r", "r", "l")  # 7 elements for 6 columns + 1
   
   # Define a sanitization function to handle special characters
   sanitize <- function(str) {
@@ -161,13 +173,18 @@ generate_tukey_latex_output <- function(tukey_test, output_file_tex) {
     return(result)
   }
   
+  # Define custom column names for LaTeX output
+  custom_colnames <- c("Comparison", "Estimate", "Std. Error", "z value", "p", "95\\% CI [LL, UL]")
+  
   # Convert the table to a LaTeX-friendly format
+  library(xtable)
   latex_table <- xtable(tukey_df, align = align_spec)
   
   # Save the LaTeX table to a .tex file
   print(latex_table, include.rownames = FALSE,
         sanitize.text.function = sanitize, 
-        sanitize.colnames.function = identity,  # Use identity to keep LaTeX in column names
+        sanitize.colnames.function = identity,
+        col.names = custom_colnames,  # Use custom column names with LaTeX formatting
         file = output_file_tex)
 }
 ```

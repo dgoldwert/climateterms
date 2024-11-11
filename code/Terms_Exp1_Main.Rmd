@@ -319,35 +319,32 @@ anovaBF(formula = willingness ~ Term,
 
 # Interactions
 ```{r clean long data}
-# Remove rows with missing data in df_long
+# Remove rows with missing data
 dfc <- na.omit(df_long)
+
+# Calculate 'ide' as the average of 'Politics2_1' and 'Politics2_9'
+dfc$Ideology <- (dfc$Politics2_1 + dfc$Politics2_9) / 2
+
+# Perform per-country median split
+dfc <- dfc %>%
+  group_by(Country) %>%
+  mutate(
+    # Compute Ideology: 1 if 'Ideology' > median 'Ideology' within country, else 0
+    Ideology_ms = as.numeric(Ideology > median(Ideology, na.rm = TRUE))
+  ) %>%
+  ungroup()
+
+# Ensure 'Ideology' is NA where 'Politics2_1' is NA
+dfc$Ideology_ms[is.na(dfc$Politics2_1)] <- NA
 
 # Remove participants whose Gender is not 1 or 2
 dfc <- dfc[dfc$Gender %in% c(1, 2), ]
 
-# Create continuous ideology variable
-dfc$Ideology <- (dfc$Politics2_1 + dfc$Politics2_9) / 2
-
-# Create median split ideology variable
-new <- list()
-for (country in unique(dfc$Country)) {
-  sub <- dfc[dfc$Country == country, ] # Filter for rows in the current country
-  country_median <- median(sub$Ideology, na.rm = TRUE) # Calculate the median of ide within this country
-  sub$Ideology_ms <- as.numeric(sub$Ideology > country_median) # Perform the median split and convert to numeric (0 or 1)
-  
-  # Ensure NaN ideology when Politics2_1 is NaN
-  sub$Ideology[is.na(sub$Politics2_1)] <- NA 
-  new[[country]] <- sub # Append the modified subset to the list
-}
-
-# Combine all subsets back into a single data frame
-dfc <- do.call(rbind, new)
-
-# Rename columns
+# Rename columns if necessary
 dfc <- dfc %>%
   rename(
     SES = MacArthur_SES,
-    Education = `Edu`
+    Education = Edu
   )
 ```
 

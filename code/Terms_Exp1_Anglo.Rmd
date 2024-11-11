@@ -276,27 +276,49 @@ df_long_anglo <- df_long %>%
   filter(Country %in% countries1)
 
 # Remove rows with missing data
-dfc_anglo <- df_long_anglo %>%
-  drop_na()
+dfc_anglo <- na.omit(df_long_anglo)
+
+# Calculate 'Ideology' as the average of 'Politics2_1' and 'Politics2_9'
+dfc_anglo$Ideology <- (dfc_anglo$Politics2_1 + dfc_anglo$Politics2_9) / 2
+
+# Perform per-country median split to create binary 'Ideology_ms' variable
+dfc_anglo <- dfc_anglo %>%
+  group_by(Country) %>%
+  mutate(
+    Ideology_ms = as.numeric(Ideology > median(Ideology, na.rm = TRUE))
+  ) %>%
+  ungroup()
+
+# Ensure 'Ideology_ms' is NA where 'Politics2_1' is NA
+dfc_anglo$Ideology_ms[is.na(dfc_anglo$Politics2_1)] <- NA
 
 # Remove participants whose Gender is not 1 or 2
 dfc_anglo <- dfc_anglo[dfc_anglo$Gender %in% c(1, 2), ]
 
-# Create continuous ideology variable
-dfc_anglo$Ideology <- (dfc_anglo$Politics2_1 + dfc_anglo$Politics2_9) / 2
-
-# Rename columns
+# Rename columns if necessary
 dfc_anglo <- dfc_anglo %>%
   rename(
     SES = MacArthur_SES,
-    Education = `Edu`
+    Education = Edu
   )
 ```
 
-```{r ideology (continuous)}
-#continuous ideology variable
-M <- lmer(willingness ~ Term*Ideology + (1 | Country), data = dfc)
+```{r Ideology (continuous)}
+#continuous Ideology variable
+M <- lmer(willingness ~ Term*Ideology + (1 | Country), data = dfc_anglo)
 generate_model_and_latex_output(M, "willingness", "../overleaf/tabs_Anglo/main_ide_cont.tex")
+print(summary(M))
+confint(M)
+
+print(paste("------------------ ANOVA with type III sum of squares:------------------"))
+anova_result <- car::Anova(M, type = "III")
+print(anova_result)
+```
+
+```{r Ideology (median split)}
+#median split ideology variable
+M <- lmer(willingness ~ Term*Ideology_ms + (1 | Country), data = dfc_anglo)
+generate_model_and_latex_output(M, "willingness", "../overleaf/tabs_Anglo/main_ide_ms.tex")
 print(summary(M))
 confint(M)
 

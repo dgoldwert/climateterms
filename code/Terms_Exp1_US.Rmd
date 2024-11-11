@@ -272,20 +272,30 @@ df_long_US <- df_long %>%
   filter(Country %in% c("usa"))
 
 # Remove rows with missing data
-dfc_US <- df_long_US %>%
-  drop_na()
+dfc_US <- na.omit(df_long_US)
+
+# Calculate 'Ideology' as the average of 'Politics2_1' and 'Politics2_9'
+dfc_US$Ideology <- (dfc_US$Politics2_1 + dfc_US$Politics2_9) / 2
+
+# Perform per-country median split to create binary 'Ideology_ms' variable
+dfc_US <- dfc_US %>%
+  group_by(Country) %>%
+  mutate(
+    Ideology_ms = as.numeric(Ideology > median(Ideology, na.rm = TRUE))
+  ) %>%
+  ungroup()
+
+# Ensure 'Ideology_ms' is NA where 'Politics2_1' is NA
+dfc_US$Ideology_ms[is.na(dfc_US$Politics2_1)] <- NA
 
 # Remove participants whose Gender is not 1 or 2
 dfc_US <- dfc_US[dfc_US$Gender %in% c(1, 2), ]
 
-# Create continuous ideology variable
-dfc_US$Ideology <- (dfc_US$Politics2_1 + dfc_US$Politics2_9) / 2
-
-# Rename columns
+# Rename columns if necessary
 dfc_US <- dfc_US %>%
   rename(
     SES = MacArthur_SES,
-    Education = `Edu`
+    Education = Edu
   )
 ```
 
