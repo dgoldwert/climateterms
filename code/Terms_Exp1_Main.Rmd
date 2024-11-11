@@ -137,7 +137,7 @@ generate_tukey_latex_output <- function(tukey_test, output_file_tex) {
   tukey_df <- data.frame(
     Comparison = comparisons,
     Estimate = round(estimates, 2),
-    `Std. Error` = round(std_errors, 2),
+    `\\textit{SE}` = round(std_errors, 2),
     `z value` = round(z_values, 2),
     p = p_values,  # We'll format p-values later
     `95\\% CI [LL, UL]` = ci_formatted,  # Simplified column name
