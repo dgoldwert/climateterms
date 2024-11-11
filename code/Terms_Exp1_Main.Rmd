@@ -140,7 +140,7 @@ generate_tukey_latex_output <- function(tukey_test, output_file_tex) {
     `Std. Error` = round(std_errors, 2),
     `z value` = round(z_values, 2),
     p = p_values,  # We'll format p-values later
-    `95_CI` = ci_formatted,  # Simplified column name
+    `95\\% CI [LL, UL]` = ci_formatted,  # Simplified column name
     stringsAsFactors = FALSE,
     check.names = FALSE  # Prevent automatic renaming of columns
   )
