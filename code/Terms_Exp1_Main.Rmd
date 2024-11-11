@@ -114,14 +114,24 @@ generate_tukey_latex_output <- function(tukey_test, output_file_tex) {
   # Summarize the Tukey test results
   summary_tukey <- summary(tukey_test)
   
+  # Get confidence intervals
+  confint_tukey <- confint(tukey_test)
+  
   # Extract estimates, standard errors, z-values, and p-values
   estimates <- summary_tukey$test$coefficients
   std_errors <- summary_tukey$test$sigma
   z_values <- summary_tukey$test$tstat
   p_values <- summary_tukey$test$pvalues
   
+  # Extract confidence intervals
+  ci_lower <- confint_tukey$confint[, "lwr"]
+  ci_upper <- confint_tukey$confint[, "upr"]
+  
   # Extract the comparison labels
   comparisons <- names(estimates)
+  
+  # Format confidence intervals as "[LL, UL]"
+  ci_formatted <- paste0("[", round(ci_lower, 2), ", ", round(ci_upper, 2), "]")
   
   # Create a data frame for results
   tukey_df <- data.frame(
@@ -129,6 +139,7 @@ generate_tukey_latex_output <- function(tukey_test, output_file_tex) {
     Estimate = round(estimates, 2),
     "Std. Error" = round(std_errors, 2),
     "z value" = round(z_values, 2),
+    "95% CI [LL, UL]" = ci_formatted,
     "p" = p_values,
     stringsAsFactors = FALSE
   )
@@ -140,7 +151,7 @@ generate_tukey_latex_output <- function(tukey_test, output_file_tex) {
   tukey_df$p <- ifelse(p_values < 0.006, paste0("\\textbf{", tukey_df$p, "}"), tukey_df$p)
   
   # Set alignment for columns (length should be ncol + 1)
-  align_spec <- c("l", "l", "r", "r", "r", "r")  # Adjusted length for table with 5 columns
+  align_spec <- c("l", "l", "r", "r", "r", "l", "r")  # Adjusted for 6 columns
   
   # Define a sanitization function to handle special characters
   sanitize <- function(str) {
